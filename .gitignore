@@ -1,3 +1,37 @@
-build
+# ---- 빌드 산출물 ----
+build/
+out/
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.d
+*.su
+*.cyclo
+
+# ---- CubeMX 임시 파일 ----
 mx.scratch
-!.settings
+
+# ---- STM32Cube VS Code 확장: PC별 로컬 설정 (번들 경로 등) ----
+.settings/
+
+# ---- 도구 캐시 (.clangd 파일 자체는 설정이므로 추적) ----
+.clangd/
+.cache/
+.vscode/ipch/
+
+# ---- 로컬 전용 설정/비밀 정보 (필요 시 사용) ----
+config_local.h
+*.local
+
+# ---- 디버그 / 로그 ----
+*.log
+*.rtt
+
+# ---- OS / 에디터 ----
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*~

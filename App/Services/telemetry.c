@@ -11,21 +11,24 @@ static int put_opt(char *dst, size_t size, bool valid, long value)
   return valid ? snprintf(dst, size, "%ld", value) : snprintf(dst, size, "NA");
 }
 
-size_t telemetry_format(char *buf, size_t size, const measurement_t *m, uint32_t seq)
+size_t telemetry_format(char *buf, size_t size, const measurement_t *m, uint32_t packet_index)
 {
-  char bt[12], et[12], eh[12], ep[12], gas[16], mq[12];
-  put_opt(bt, sizeof bt, m->batt_temp_valid, m->batt_temp_x10);
-  put_opt(et, sizeof et, m->env.valid_mask & ENV_HAS_TEMP, m->env.temp_x10);
-  put_opt(eh, sizeof eh, m->env.valid_mask & ENV_HAS_HUM, m->env.hum_x10);
-  put_opt(ep, sizeof ep, m->env.valid_mask & ENV_HAS_PRESS, m->env.press_hpa_x10);
-  put_opt(gas, sizeof gas, m->env.valid_mask & ENV_HAS_GAS, (long)m->env.gas_ohm);
-  put_opt(mq, sizeof mq, m->mq_ready, m->mq_mv);
+  char cell_temp[12], air_temp[12], air_humi[12], air_pres[12], gas[16];
+  put_opt(cell_temp, sizeof cell_temp, m->batt_temp_valid, m->batt_temp_x10);
+  put_opt(air_temp, sizeof air_temp, m->env.valid_mask & ENV_HAS_TEMP, m->env.temp_x10);
+  put_opt(air_humi, sizeof air_humi, m->env.valid_mask & ENV_HAS_HUM, m->env.hum_x10);
+  put_opt(air_pres, sizeof air_pres, m->env.valid_mask & ENV_HAS_PRESS, m->env.press_hpa_x10);
 
-  int n = snprintf(buf, size, "$BAT,%d,%lu,%lu,%u,%u,%u,%s,%s,%s,%s,%s,%s,%u,%u",
-                   APP_DEVICE_ID, (unsigned long)seq, (unsigned long)m->tick_ms,
-                   m->vdda_mv, m->cell_mv, m->soc_pct,
-                   bt, et, eh, ep, gas, mq,
-                   (unsigned)m->safety.state, (unsigned)m->safety.flags);
+  /* gas: BME680 가스 저항(ohm) 우선, 없으면 MQ 전압(mV) */
+  if (m->env.valid_mask & ENV_HAS_GAS) {
+    put_opt(gas, sizeof gas, true, (long)m->env.gas_ohm);
+  } else {
+    put_opt(gas, sizeof gas, m->mq_ready, m->mq_mv);
+  }
+
+  int n = snprintf(buf, size, "$BAT,%d,%lu,%lu,%u,%s,%s,%s,%s,%s",
+                   APP_DEVICE_ID, (unsigned long)packet_index, (unsigned long)m->tick_ms,
+                   m->cell_mv, cell_temp, air_temp, air_humi, air_pres, gas);
   if (n < 0 || (size_t)n + 6 > size) {   /* "*CC\n" + NUL 여유 */
     return 0;
   }
@@ -40,9 +43,9 @@ size_t telemetry_format(char *buf, size_t size, const measurement_t *m, uint32_t
 
 void telemetry_send(const measurement_t *m)
 {
-  static uint32_t seq;
+  static uint32_t packet_index;
   char buf[PACKET_MAX];
-  size_t len = telemetry_format(buf, sizeof buf, m, seq++);
+  size_t len = telemetry_format(buf, sizeof buf, m, packet_index++);
   if (len > 0) {
     bt_link_send(buf, len);
   }
