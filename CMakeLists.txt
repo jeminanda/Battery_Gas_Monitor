@@ -48,6 +48,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     App/Drivers/cell_voltage.c
     App/Drivers/mq_gas.c
     App/Drivers/dht11.c
+    App/Drivers/ina219.c
     App/Services/adc_sampler.c
     App/Services/env_sensor.c
     App/Services/battery_soc.c
@@ -55,6 +56,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     App/Services/telemetry.c
     App/Services/bt_link.c
     App/Services/log.c
+    App/Services/power_monitor.c
     # 부품 도착 후 추가: App/Drivers/ntc.c, App/Drivers/bme680_port.c
 )
 

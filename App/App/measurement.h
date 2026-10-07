@@ -18,6 +18,11 @@ typedef struct {
   uint16_t mq_mv;
   env_data_t env;
   safety_result_t safety;
+
+  /* 전류 (INA219) */
+  bool     power_valid;        /* INA219 가 없으면 false */
+  uint16_t vbus_mv;
+  int16_t  current_ma;         /* 충전 +, 방전 - */
 } measurement_t;
 
 #endif /* MEASUREMENT_H */

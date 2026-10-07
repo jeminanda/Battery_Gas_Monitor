@@ -16,6 +16,8 @@
 #define PERIOD_EVAL_MS          100
 #define PERIOD_TELEMETRY_MS     1000
 #define PERIOD_LOG_MS           1000
+#define PERIOD_POWER_MS         100     /* INA219 읽기(= SOC 적분) 주기 */
+#define PERIOD_INA_REPROBE_MS   1000    /* INA219 미검출 시 재탐색 주기 (꽂으면 자동 인식) */
 
 /* ---- ADC -------------------------------------------------------------- */
 #define ADC_FULL_SCALE          4095U
@@ -40,6 +42,13 @@
 #define SAFE_TEMP_ALARM_X10     600     /* 60.0 C */
 #define SAFE_GAS_WARN_MV        1500    /* TODO: 실측 후 보정 */
 #define SAFE_GAS_ALARM_MV       2200
+
+/* ---- I2C / INA219 (전류 측정, 없으면 자동으로 "NA" 처리) --------------- */
+#define APP_I2C_SPEED_HZ        400000UL
+#define INA219_I2C_ADDR_7BIT    0x40
+#define INA219_SHUNT_MOHM       100     /* TODO: 모듈 션트 저항 확인 (R100 = 100 mohm) */
+#define INA219_PGA              3       /* 0:+-40mV 1:+-80mV 2:+-160mV 3:+-320mV (0.1ohm 에서 3.2A) */
+#define INA219_CURRENT_SIGN     (+1)    /* 충전 + / 방전 - 가 되도록 배선에 맞게 +1/-1 */
 
 /* ---- BME680 (도착 후 사용) -------------------------------------------- */
 #define BME680_I2C_ADDR_7BIT    0x76    /* SDO=GND:0x76, SDO=VDD:0x77 */
