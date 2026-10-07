@@ -53,6 +53,9 @@
 /* ---- TP4056 충전 상태 (CHRG/STDBY 는 open-drain, Low 가 활성) ----------- */
 #define CHG_DEBOUNCE_MS         500     /* 이 시간 동안 같은 값이어야 상태 전환 (CHRG 점멸 무시) */
 
+/* ---- 충전 차단 (MOSFET1, PB10 High = 충전 허용) -------------------------- */
+#define CHARGE_CUT_HOLD_MS      10000UL /* 경보가 풀려도 이 시간 동안은 차단 유지 (채터링 방지) */
+
 /* ---- BME680 (도착 후 사용) -------------------------------------------- */
 #define BME680_I2C_ADDR_7BIT    0x76    /* SDO=GND:0x76, SDO=VDD:0x77 */
 

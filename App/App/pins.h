@@ -11,4 +11,8 @@
 #define PIN_STDBY_PORT  GPIOB
 #define PIN_STDBY       GPIO_PIN_4
 
+/* 충전 차단 MOSFET1 게이트 (High = 충전 허용) */
+#define PIN_CHG_EN_PORT GPIOB
+#define PIN_CHG_EN      GPIO_PIN_10
+
 #endif /* APP_PINS_H */

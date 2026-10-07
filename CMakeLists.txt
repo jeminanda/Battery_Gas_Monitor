@@ -59,6 +59,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     App/Services/log.c
     App/Services/power_monitor.c
     App/Services/charge_status.c
+    App/Services/charge_ctrl.c
     # 부품 도착 후 추가: App/Drivers/ntc.c, App/Drivers/bme680_port.c
 )
 

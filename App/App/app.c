@@ -13,6 +13,7 @@
 #include "mq_gas.h"
 #include "power_monitor.h"
 #include "charge_status.h"
+#include "charge_ctrl.h"
 #if APP_HAVE_NTC
 #include "ntc.h"
 #endif
@@ -68,6 +69,8 @@ static void measure_update(uint32_t now)
   meas.vbus_mv = pw->vbus_mv;
   meas.current_ma = (int16_t)pw->current_ma;
   meas.charge_state = charge_status_get();
+  charge_ctrl_update(now, &meas.safety);
+  meas.charge_enabled = charge_ctrl_is_enabled();
 
   meas_valid = true;
 }
@@ -92,6 +95,7 @@ void app_init(void)
   env_sensor_init();
   power_monitor_init();
   charge_status_init();
+  charge_ctrl_init();
   bt_link_init();
   bt_link_set_line_cb(on_bt_line);
   LOG("Battery monitor boot (ntc=%d, bme680=%d)", APP_HAVE_NTC, ENV_BACKEND_BME680);
