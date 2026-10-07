@@ -22,3 +22,18 @@ uint8_t battery_soc_pct_from_mv(uint16_t cell_mv)
   }
   return table[TABLE_LEN - 1].pct;
 }
+
+uint16_t battery_soc_permil_from_mv(uint16_t cell_mv)
+{
+  if (cell_mv <= table[0].mv) {
+    return (uint16_t)(table[0].pct * 10);
+  }
+  for (unsigned i = 1; i < TABLE_LEN; i++) {
+    if (cell_mv <= table[i].mv) {
+      uint32_t dmv = table[i].mv - table[i - 1].mv;
+      uint32_t dpm = (uint32_t)(table[i].pct - table[i - 1].pct) * 10;
+      return (uint16_t)(table[i - 1].pct * 10 + ((cell_mv - table[i - 1].mv) * dpm) / dmv);
+    }
+  }
+  return (uint16_t)(table[TABLE_LEN - 1].pct * 10);
+}

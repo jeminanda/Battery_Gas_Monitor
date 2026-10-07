@@ -14,6 +14,7 @@
 #include "power_monitor.h"
 #include "charge_status.h"
 #include "charge_ctrl.h"
+#include "soc_estimator.h"
 #if APP_HAVE_NTC
 #include "ntc.h"
 #endif
@@ -71,6 +72,9 @@ static void measure_update(uint32_t now)
   meas.charge_state = charge_status_get();
   charge_ctrl_update(now, &meas.safety);
   meas.charge_enabled = charge_ctrl_is_enabled();
+  soc_estimator_update(now, pw->valid, pw->current_ma, meas.cell_mv, meas.charge_state);
+  meas.soc_valid = soc_estimator_valid();
+  meas.soc_permil = soc_estimator_permil();
 
   meas_valid = true;
 }
@@ -96,6 +100,7 @@ void app_init(void)
   power_monitor_init();
   charge_status_init();
   charge_ctrl_init();
+  soc_estimator_init();
   bt_link_init();
   bt_link_set_line_cb(on_bt_line);
   LOG("Battery monitor boot (ntc=%d, bme680=%d)", APP_HAVE_NTC, ENV_BACKEND_BME680);

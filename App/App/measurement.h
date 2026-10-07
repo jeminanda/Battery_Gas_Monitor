@@ -27,6 +27,8 @@ typedef struct {
   /* 충전 상태 (TP4056) */
   uint8_t  charge_state;       /* 0 미연결 / 1 충전 중 / 2 완충 / 3 비정상 */
   bool     charge_enabled;     /* 충전 차단 MOSFET 상태 (PB10) */
+  bool     soc_valid;
+  uint16_t soc_permil;         /* 전류 적분 SOC, 0~1000 */
 } measurement_t;
 
 #endif /* MEASUREMENT_H */

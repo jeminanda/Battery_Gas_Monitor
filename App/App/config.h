@@ -56,6 +56,13 @@
 /* ---- 충전 차단 (MOSFET1, PB10 High = 충전 허용) -------------------------- */
 #define CHARGE_CUT_HOLD_MS      10000UL /* 경보가 풀려도 이 시간 동안은 차단 유지 (채터링 방지) */
 
+/* ---- SOC (전류 적분 + 완충 리셋 + 휴지 시 OCV 보정) --------------------- */
+#define BATT_CAPACITY_MAH       2200    /* ZM18650P-2200 공칭 용량 */
+#define SOC_BATT_PRESENT_MV     2500    /* 이 전압 미만이면 배터리 없음으로 보고 SOC 무효 */
+#define SOC_REST_CURRENT_MA     10      /* |전류| 가 이 값 이하이면 휴지 상태 */
+#define SOC_REST_CORRECT_MS     1800000UL /* 휴지가 이 시간 지속되면 OCV 로 보정 */
+#define SOC_MAX_DT_MS           2000UL  /* 적분 간격이 이보다 길면 해당 구간은 적분하지 않음 */
+
 /* ---- BME680 (도착 후 사용) -------------------------------------------- */
 #define BME680_I2C_ADDR_7BIT    0x76    /* SDO=GND:0x76, SDO=VDD:0x77 */
 
