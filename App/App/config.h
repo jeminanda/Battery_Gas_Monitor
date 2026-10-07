@@ -63,6 +63,21 @@
 #define SOC_REST_CORRECT_MS     1800000UL /* 휴지가 이 시간 지속되면 OCV 로 보정 */
 #define SOC_MAX_DT_MS           2000UL  /* 적분 간격이 이보다 길면 해당 구간은 적분하지 않음 */
 
+/* ---- DCIR 측정 (TIM3 원펄스 부하 + 충전 차단 인터록) -------------------- */
+/* 부하 펄스 폭은 CubeMX 의 TIM3 설정(Prescaler/Period)으로 결정된다. (현재 약 100ms) */
+#define DCIR_WINDOW_START_MS    80      /* 0~80ms 는 버리고 */
+#define DCIR_WINDOW_END_MS      98      /* 80~98ms 구간을 V1, I1 로 평균 */
+#define DCIR_BASELINE_SAMPLES   64      /* V0, I0 평균 횟수 */
+#define DCIR_REST_MS            30000UL /* 충전기 분리 후 휴지 */
+#define DCIR_REPEAT_REST_MS     10000UL /* 반복 측정 사이 회복 시간 */
+#define DCIR_REPEAT_N           5       /* 측정 반복 횟수 (5~10) */
+#define DCIR_MIN_VALID          3       /* 유효한 반복이 이보다 적으면 결과 폐기 */
+#define DCIR_MIN_INTERVAL_MS    60000UL /* 직전 측정 후 최소 간격 */
+#define DCIR_MIN_CELL_MV        3300    /* 이 전압 미만이면 측정 취소 */
+#define DCIR_MIN_DELTA_UA       20000   /* 부하 ON/OFF 전류 변화가 이보다 작으면 무효 (예상 약 75mA) */
+#define DCIR_MIN_WINDOW_SAMPLES 8       /* 80~98ms 구간 최소 샘플 수 */
+#define DCIR_AUTO_INTERVAL_MS   0UL     /* 0 이면 자동 측정 없음 (B1 버튼 / BT "DCIR" 명령으로 시작) */
+
 /* ---- BME680 (도착 후 사용) -------------------------------------------- */
 #define BME680_I2C_ADDR_7BIT    0x76    /* SDO=GND:0x76, SDO=VDD:0x77 */
 

@@ -50,6 +50,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     App/Drivers/dht11.c
     App/Drivers/ina219.c
     App/Drivers/tp4056.c
+    App/Drivers/dcir_load.c
     App/Services/adc_sampler.c
     App/Services/env_sensor.c
     App/Services/battery_soc.c
@@ -61,6 +62,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     App/Services/charge_status.c
     App/Services/charge_ctrl.c
     App/Services/soc_estimator.c
+    App/Services/dcir.c
     # 부품 도착 후 추가: App/Drivers/ntc.c, App/Drivers/bme680_port.c
 )
 

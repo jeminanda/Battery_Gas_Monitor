@@ -18,6 +18,12 @@ void adc_sampler_init(void);
 /* 메인 루프에서 호출: DMA 완료 처리, 평균, 다음 변환 시작 */
 void adc_sampler_task(uint32_t now_ms);
 
+/*
+ * 즉시 1회 변환(블로킹, 약 0.1ms). 평균 없이 raw 를 그대로 반환한다.
+ * DCIR 처럼 빠른 연속 샘플링이 필요할 때 사용하며, 진행 중이던 일반 변환은 중단한다.
+ */
+bool adc_sampler_read_once(uint16_t out[ADC_IDX_COUNT], uint32_t timeout_ms);
+
 /* 첫 평균값이 준비되었는지 */
 bool adc_sampler_ready(void);
 

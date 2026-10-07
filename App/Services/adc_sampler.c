@@ -69,6 +69,28 @@ void adc_sampler_task(uint32_t now_ms)
   }
 }
 
+bool adc_sampler_read_once(uint16_t out[ADC_IDX_COUNT], uint32_t timeout_ms)
+{
+  HAL_ADC_Stop_DMA(&hadc1);
+  conv_done = false;
+  running = false;
+  if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)dma_buf, ADC_IDX_COUNT) != HAL_OK) {
+    return false;
+  }
+  uint32_t t0 = HAL_GetTick();
+  while (!conv_done) {
+    if ((HAL_GetTick() - t0) > timeout_ms) {
+      HAL_ADC_Stop_DMA(&hadc1);
+      return false;
+    }
+  }
+  conv_done = false;
+  for (int i = 0; i < ADC_IDX_COUNT; i++) {
+    out[i] = dma_buf[i];
+  }
+  return true;
+}
+
 bool adc_sampler_ready(void)
 {
   return ready;

@@ -15,6 +15,8 @@
 #include "charge_status.h"
 #include "charge_ctrl.h"
 #include "soc_estimator.h"
+#include "dcir.h"
+#include <string.h>
 #if APP_HAVE_NTC
 #include "ntc.h"
 #endif
@@ -35,6 +37,32 @@ static void on_bt_line(const char *line)
 {
   /* TODO: 서버/라즈베리파이 명령 처리 (임계값 변경, 주기 변경 등) */
   LOG("BT rx: %s", line);
+
+  if (strcmp(line, "DCIR") == 0) {
+    if (!dcir_request()) {
+      LOG("DCIR already running");
+    }
+  } else if (strcmp(line, "DCIR STOP") == 0) {
+    dcir_abort("stop command");
+  }
+}
+
+/* B1(사용자 버튼, 누르면 Low): DCIR 측정 시작. 서버 없이 보드만으로 시험할 때 사용 */
+static void poll_button(uint32_t now)
+{
+  static uint32_t last;
+  static bool prev;
+  if (!due(&last, now, 20)) {
+    return;
+  }
+  bool pressed = (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_RESET);
+  if (pressed && !prev) {
+    LOG("B1 pressed: DCIR request");
+    if (!dcir_request()) {
+      LOG("DCIR already running");
+    }
+  }
+  prev = pressed;
 }
 
 static void measure_update(uint32_t now)
@@ -101,6 +129,7 @@ void app_init(void)
   charge_status_init();
   charge_ctrl_init();
   soc_estimator_init();
+  dcir_init();
   bt_link_init();
   bt_link_set_line_cb(on_bt_line);
   LOG("Battery monitor boot (ntc=%d, bme680=%d)", APP_HAVE_NTC, ENV_BACKEND_BME680);
@@ -115,12 +144,23 @@ void app_loop(void)
   env_sensor_task(now);
   power_monitor_task(now);
   charge_status_task(now);
+  poll_button(now);
   bt_link_task();
 
   if (adc_sampler_ready()) {
     if (due(&t_eval, now, PERIOD_EVAL_MS)) {
       measure_update(now);
     }
+    dcir_input_t di = {
+      .ready = meas_valid,
+      .cell_mv = meas.cell_mv,
+      .charge_state = meas.charge_state,
+      .power_valid = meas.power_valid,
+      .temp_valid = meas.batt_temp_valid || (meas.env.valid_mask & ENV_HAS_TEMP),
+      .temp_x10 = meas.batt_temp_valid ? meas.batt_temp_x10 : meas.env.temp_x10,
+    };
+    dcir_task(now, &di);
+
     if (meas_valid && due(&t_tx, now, PERIOD_TELEMETRY_MS)) {
       telemetry_send(&meas);
     }
