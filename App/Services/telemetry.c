@@ -41,9 +41,15 @@ size_t telemetry_format(char *buf, size_t size, const measurement_t *m, uint32_t
     put_opt(gas, sizeof gas, m->mq_ready, m->mq_mv);
   }
 
-  int n = snprintf(buf, size, "$BAT,%d,%lu,%lu,%u,%s,%s,%s,%s,%s",
+  char vbus[12], cur[12], soc[12];
+  put_opt(vbus, sizeof vbus, m->power_valid, m->vbus_mv);
+  put_opt(cur, sizeof cur, m->power_valid, m->current_ma);
+  put_opt(soc, sizeof soc, m->soc_valid, m->soc_permil);
+
+  int n = snprintf(buf, size, "$BAT,%d,%lu,%lu,%u,%s,%s,%s,%s,%s,%s,%s,%u,%s,%u",
                    APP_DEVICE_ID, (unsigned long)packet_index, (unsigned long)m->tick_ms,
-                   m->cell_mv, cell_temp, air_temp, air_humi, air_pres, gas);
+                   m->cell_mv, cell_temp, air_temp, air_humi, air_pres, gas,
+                   vbus, cur, (unsigned)m->charge_state, soc, (unsigned)m->charge_enabled);
   return finish_packet(buf, size, n);
 }
 

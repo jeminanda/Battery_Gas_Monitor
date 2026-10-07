@@ -19,12 +19,10 @@ typedef struct {
   env_data_t env;
   safety_result_t safety;
 
-  /* 전류 (INA219) */
+  /* 전류/충전 (INA219, TP4056) */
   bool     power_valid;        /* INA219 가 없으면 false */
   uint16_t vbus_mv;
   int16_t  current_ma;         /* 충전 +, 방전 - */
-
-  /* 충전 상태 (TP4056) */
   uint8_t  charge_state;       /* 0 미연결 / 1 충전 중 / 2 완충 / 3 비정상 */
   bool     charge_enabled;     /* 충전 차단 MOSFET 상태 (PB10) */
   bool     soc_valid;

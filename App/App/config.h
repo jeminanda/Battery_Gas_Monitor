@@ -22,7 +22,7 @@
 /* ---- ADC -------------------------------------------------------------- */
 #define ADC_FULL_SCALE          4095U
 #define ADC_AVG_SAMPLES         16
-#define VREFINT_CAL_ADDR        ((const volatile uint16_t *)0x1FFF7A2AUL)
+#define APP_VREFINT_CAL_ADDR    ((const volatile uint16_t *)0x1FFF7A2AUL)
 #define VREFINT_CAL_VDDA_MV     3300U   /* 공장 캘리브레이션 시 VDDA */
 #define VDDA_NOMINAL_MV         3300U
 

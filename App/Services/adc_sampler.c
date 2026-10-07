@@ -37,7 +37,7 @@ static void publish_average(void)
   acc_count = 0;
 
   if (avg[ADC_IDX_VREF] != 0) {
-    vdda_mv = (uint16_t)(((uint32_t)VREFINT_CAL_VDDA_MV * *VREFINT_CAL_ADDR)
+    vdda_mv = (uint16_t)(((uint32_t)VREFINT_CAL_VDDA_MV * *APP_VREFINT_CAL_ADDR)
                          / avg[ADC_IDX_VREF]);
   }
   ready = true;

@@ -93,6 +93,7 @@ static void measure_update(uint32_t now)
   };
   meas.safety = safety_evaluate(&in);
 
+  /* 전류 / 충전 / SOC */
   const power_data_t *pw = power_monitor_get();
   meas.power_valid = pw->valid;
   meas.vbus_mv = pw->vbus_mv;
@@ -165,9 +166,10 @@ void app_loop(void)
       telemetry_send(&meas);
     }
     if (meas_valid && due(&t_log, now, PERIOD_LOG_MS)) {
-      LOG("cell=%umV soc=%u%% mq=%umV env_t=%d state=%d flags=0x%X",
+      LOG("cell=%umV soc=%u%% mq=%umV env_t=%d state=%d flags=0x%X i=%dmA chg=%u en=%u socq=%u",
           meas.cell_mv, meas.soc_pct, meas.mq_mv, meas.env.temp_x10,
-          meas.safety.state, meas.safety.flags);
+          meas.safety.state, meas.safety.flags,
+          meas.current_ma, meas.charge_state, meas.charge_enabled, meas.soc_permil);
     }
   }
   update_led(now);
