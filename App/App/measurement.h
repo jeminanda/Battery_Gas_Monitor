@@ -23,6 +23,9 @@ typedef struct {
   bool     power_valid;        /* INA219 가 없으면 false */
   uint16_t vbus_mv;
   int16_t  current_ma;         /* 충전 +, 방전 - */
+
+  /* 충전 상태 (TP4056) */
+  uint8_t  charge_state;       /* 0 미연결 / 1 충전 중 / 2 완충 / 3 비정상 */
 } measurement_t;
 
 #endif /* MEASUREMENT_H */

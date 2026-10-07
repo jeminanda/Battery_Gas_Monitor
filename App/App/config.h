@@ -50,6 +50,9 @@
 #define INA219_PGA              3       /* 0:+-40mV 1:+-80mV 2:+-160mV 3:+-320mV (0.1ohm 에서 3.2A) */
 #define INA219_CURRENT_SIGN     (+1)    /* 충전 + / 방전 - 가 되도록 배선에 맞게 +1/-1 */
 
+/* ---- TP4056 충전 상태 (CHRG/STDBY 는 open-drain, Low 가 활성) ----------- */
+#define CHG_DEBOUNCE_MS         500     /* 이 시간 동안 같은 값이어야 상태 전환 (CHRG 점멸 무시) */
+
 /* ---- BME680 (도착 후 사용) -------------------------------------------- */
 #define BME680_I2C_ADDR_7BIT    0x76    /* SDO=GND:0x76, SDO=VDD:0x77 */
 
