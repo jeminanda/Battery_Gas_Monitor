@@ -17,14 +17,16 @@ typedef enum {
 #define SAFETY_F_GAS         (1u << 3)
 /* 정보성 플래그 (상태를 올리지 않음) */
 #define SAFETY_F_TEMP_NA     (1u << 8)   /* 배터리 온도센서 없음/무효 -> 과열 판정 불가 */
-#define SAFETY_F_GAS_WARMUP  (1u << 9)   /* MQ 워밍업 중 -> 가스 판정 보류 */
+#define SAFETY_F_GAS_WARMUP  (1u << 9)   /* 가스 기준값 안정화 중 -> 가스 판정 보류 */
+#define SAFETY_F_GAS_NA      (1u << 10)  /* 가스 센서 값 없음 -> 가스 감시 불가 */
 
 typedef struct {
   uint16_t cell_mv;
   bool     batt_temp_valid;
   int16_t  batt_temp_x10;
-  bool     mq_ready;
-  uint16_t mq_mv;
+  bool     gas_valid;     /* 가스 판정이 가능한 상태 (센서 값 있음) */
+  bool     gas_warmup;    /* 가스 기준값 안정화 중 -> 판정 보류 */
+  uint8_t  gas_level;     /* 0 정상 / 1 경고 / 2 경보 (gas_monitor 의 gas_level_t) */
 } safety_input_t;
 
 typedef struct {

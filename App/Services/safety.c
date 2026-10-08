@@ -32,11 +32,13 @@ safety_result_t safety_evaluate(const safety_input_t *in)
     raise(&r, SAFETY_WARN, SAFETY_F_OVER_TEMP);
   }
 
-  if (!in->mq_ready) {
+  if (!in->gas_valid) {
+    r.flags |= SAFETY_F_GAS_NA;
+  } else if (in->gas_warmup) {
     r.flags |= SAFETY_F_GAS_WARMUP;
-  } else if (in->mq_mv >= SAFE_GAS_ALARM_MV) {
+  } else if (in->gas_level >= 2) {
     raise(&r, SAFETY_ALARM, SAFETY_F_GAS);
-  } else if (in->mq_mv >= SAFE_GAS_WARN_MV) {
+  } else if (in->gas_level == 1) {
     raise(&r, SAFETY_WARN, SAFETY_F_GAS);
   }
 
