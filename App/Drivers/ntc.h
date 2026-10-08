@@ -2,9 +2,8 @@
 #define NTC_H
 
 /*
- * NTC 온도센서 드라이버 -- 헤더만 존재 (부품 미도착, 구현 없음).
- * config.h 의 APP_HAVE_NTC 가 1일 때만 호출해야 하며, ntc.c 를 추가하고
- * CMakeLists.txt 의 소스 목록에 등록한 뒤 사용한다.
+ * NTC 온도센서 드라이버 (PA1 분압 -> Beta 식).
+ * config.h 의 APP_HAVE_NTC 가 1일 때만 호출한다. 분압 구성/B 값은 config.h 의 NTC_* 참고.
  */
 
 #include <stdint.h>
