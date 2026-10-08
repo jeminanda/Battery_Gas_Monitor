@@ -3,16 +3,22 @@
 #include "main.h"
 #include "adc.h"
 
-static uint16_t dma_buf[ADC_IDX_COUNT];
-static uint32_t acc[ADC_IDX_COUNT];
-static uint16_t avg[ADC_IDX_COUNT];
+/*
+ * ADC1 스캔(NTC, 셀 전압, VREFINT)을 DMA 로 읽어 ADC_AVG_SAMPLES 번 평균한다.
+ * 변환 흐름: 일정 주기로 변환 시작 -> DMA 완료 콜백이 conv_done 설정 -> task 가 누적 -> 평균 공개.
+ * VREFINT 로 실제 VDDA 를 계산해 mV 환산 시 공급 전압 변동을 보정한다.
+ */
+static uint16_t dma_buf[ADC_IDX_COUNT];   /* DMA 가 채우는 최신 1회 변환 결과 */
+static uint32_t acc[ADC_IDX_COUNT];       /* 평균용 누적 합 */
+static uint16_t avg[ADC_IDX_COUNT];       /* 공개되는 평균 raw 값 */
 static uint16_t vdda_mv = VDDA_NOMINAL_MV;
-static uint8_t  acc_count;
-static bool     ready;
-static bool     running;
+static uint8_t  acc_count;                /* 지금까지 누적한 횟수 */
+static bool     ready;                    /* 첫 평균이 나왔는지 */
+static bool     running;                  /* 변환이 진행 중인지 */
 static uint32_t last_start_ms;
-static volatile bool conv_done;
+static volatile bool conv_done;           /* ISR 에서 설정, task 에서 해제 */
 
+/* DMA 전송 완료(ISR): 메인 루프가 처리하도록 플래그만 세운다 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
   if (hadc == &hadc1) {
@@ -20,6 +26,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
   }
 }
 
+/* 스캔 변환 1회 시작. DMAContinuousRequests=DISABLE 이므로 매번 다시 시작해야 한다 */
 static void start_conversion(void)
 {
   HAL_ADC_Stop_DMA(&hadc1);
@@ -28,6 +35,7 @@ static void start_conversion(void)
   }
 }
 
+/* 누적 합을 평균으로 확정하고 VREFINT 로 VDDA 를 갱신한다 */
 static void publish_average(void)
 {
   for (int i = 0; i < ADC_IDX_COUNT; i++) {
@@ -36,6 +44,7 @@ static void publish_average(void)
   }
   acc_count = 0;
 
+  /* VDDA = (공장 보정 시 VDDA) * (보정 시 VREFINT raw) / (현재 VREFINT raw) */
   if (avg[ADC_IDX_VREF] != 0) {
     vdda_mv = (uint16_t)(((uint32_t)VREFINT_CAL_VDDA_MV * *APP_VREFINT_CAL_ADDR)
                          / avg[ADC_IDX_VREF]);
@@ -43,12 +52,14 @@ static void publish_average(void)
   ready = true;
 }
 
+/* 첫 변환 시작. 이후는 adc_sampler_task 가 주기적으로 이어간다 */
 void adc_sampler_init(void)
 {
   conv_done = false;
   start_conversion();
 }
 
+/* 메인 루프에서 호출: 끝난 변환을 누적하고, 주기가 되면 다음 변환을 시작 */
 void adc_sampler_task(uint32_t now_ms)
 {
   if (conv_done) {
@@ -62,13 +73,14 @@ void adc_sampler_task(uint32_t now_ms)
     }
   }
 
-  /* DMAContinuousRequests=DISABLE 이므로 시퀀스마다 변환을 다시 시작해야 한다. */
+  /* 변환 중이 아니고 PERIOD_ADC_SAMPLE_MS 가 지났으면 다음 변환 시작 */
   if (!running && (now_ms - last_start_ms) >= PERIOD_ADC_SAMPLE_MS) {
     last_start_ms = now_ms;
     start_conversion();
   }
 }
 
+/* DCIR 용 즉시 1회 변환(블로킹). 평균 없이 raw 를 out 에 그대로 복사한다 */
 bool adc_sampler_read_once(uint16_t out[ADC_IDX_COUNT], uint32_t timeout_ms)
 {
   HAL_ADC_Stop_DMA(&hadc1);

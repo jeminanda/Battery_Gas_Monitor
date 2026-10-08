@@ -11,6 +11,7 @@ static uint32_t   last_ms;
 static uint8_t    fail_cnt;
 static bool       pending;   /* BME680 측정 진행 중 */
 
+/* BME680 초기화. 실패해도 task 가 주기적으로 재탐색하므로 나중에 꽂아도 인식된다 */
 bool env_sensor_init(void)
 {
   return bme680_port_init(&hi2c1, BME680_I2C_ADDR_7BIT);
@@ -40,6 +41,10 @@ static void on_failure(void)
   report_state();
 }
 
+/*
+ * 비동기 측정: 주기마다 측정을 "시작(trigger)"하고, 다음 호출들에서 완료를 "확인(poll)"한다.
+ * 완료되면 data 를 갱신하고 sample_id 를 올린다 (gas_monitor 가 새 샘플인지 판별하는 용도).
+ */
 void env_sensor_task(uint32_t now_ms)
 {
   if (pending) {

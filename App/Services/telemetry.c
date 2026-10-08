@@ -26,6 +26,7 @@ static size_t finish_packet(char *buf, size_t size, int n)
   return (size_t)n;
 }
 
+/* $BAT 패킷 문자열 생성. 필드 순서/의미는 telemetry.h 주석 참고 */
 size_t telemetry_format(char *buf, size_t size, const measurement_t *m, uint32_t packet_index)
 {
   char cell_temp[12], air_temp[12], air_humi[12], air_pres[12], gas[16];
@@ -49,6 +50,7 @@ size_t telemetry_format(char *buf, size_t size, const measurement_t *m, uint32_t
   return finish_packet(buf, size, n);
 }
 
+/* $BAT 패킷을 만들어 블루투스 송신 큐에 넣는다 (packet_index 는 보낼 때마다 증가) */
 void telemetry_send(const measurement_t *m)
 {
   static uint32_t packet_index;
@@ -59,6 +61,7 @@ void telemetry_send(const measurement_t *m)
   }
 }
 
+/* $DCIR 패킷(내부 저항 측정 결과) 문자열 생성 */
 size_t telemetry_format_dcir(char *buf, size_t size, const dcir_result_t *r)
 {
   char temp[16];
@@ -72,6 +75,7 @@ size_t telemetry_format_dcir(char *buf, size_t size, const dcir_result_t *r)
   return finish_packet(buf, size, n);
 }
 
+/* DCIR 결과를 블루투스로 송신 (측정 1세트가 끝날 때 한 번) */
 void telemetry_send_dcir(const dcir_result_t *r)
 {
   char buf[PACKET_MAX];

@@ -9,6 +9,7 @@ int __io_putchar(int ch)
   return ch;
 }
 
+/* printf 를 버퍼 없이(_IONBF) 바로 UART 로 내보내도록 설정 */
 void log_init(void)
 {
   setvbuf(stdout, NULL, _IONBF, 0);

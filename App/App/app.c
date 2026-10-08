@@ -22,9 +22,15 @@
 #include "ntc.h"
 #endif
 
-static measurement_t meas;
-static bool          meas_valid;
+/*
+ * 애플리케이션 최상위. 센서 모듈들을 주기적으로 돌리고(app_loop), 그 결과를
+ * measurement_t 한 덩어리로 모아(measure_update) 텔레메트리/로그/LED 로 내보낸다.
+ */
 
+static measurement_t meas;        /* 가장 최근 측정 스냅샷 (telemetry/log/dcir 가 읽음) */
+static bool          meas_valid;  /* measure_update 가 한 번이라도 실행됐는지 */
+
+/* 주기 판정: period 이상 지났으면 *last 를 now 로 갱신하고 true */
 static bool due(uint32_t *last, uint32_t now, uint32_t period)
 {
   if ((now - *last) >= period) {
@@ -34,6 +40,7 @@ static bool due(uint32_t *last, uint32_t now, uint32_t period)
   return false;
 }
 
+/* 블루투스로 한 줄(개행 제외)을 받으면 호출된다. 현재 지원 명령: "DCIR", "DCIR STOP" */
 static void on_bt_line(const char *line)
 {
   /* TODO: 서버/라즈베리파이 명령 처리 (임계값 변경, 주기 변경 등) */
@@ -66,13 +73,19 @@ static void poll_button(uint32_t now)
   prev = pressed;
 }
 
+/*
+ * 센서값을 모아 meas 를 갱신한다 (PERIOD_EVAL_MS 주기).
+ * 순서: 셀 전압 -> 배터리 온도(NTC) -> 환경/가스 -> 안전 판정 -> 전류/충전/SOC
+ */
 static void measure_update(uint32_t now)
 {
   meas.tick_ms = now;
   meas.vdda_mv = adc_sampler_get_vdda_mv();
+  /* 셀 전압(분압 -> mV)과 OCV 테이블 기반 SOC. 전류 적분 SOC 는 아래 soc_estimator 가 따로 계산 */
   meas.cell_mv = cell_voltage_mv_from_raw(adc_sampler_get_raw(ADC_IDX_CELL), meas.vdda_mv);
   meas.soc_pct = battery_soc_pct_from_mv(meas.cell_mv);
 
+  /* 배터리 온도: NTC 가 단선/단락이면 valid=false (안전 판정에서 TEMP_NA 로 표시) */
 #if APP_HAVE_NTC
   uint16_t ntc_raw = adc_sampler_get_raw(ADC_IDX_NTC);
   meas.batt_temp_valid = ntc_temp_x10_from_raw(ntc_raw, meas.vdda_mv, &meas.batt_temp_x10);
@@ -90,10 +103,12 @@ static void measure_update(uint32_t now)
   meas.batt_temp_valid = false;
 #endif
 
+  /* BME680 환경값과 가스 이상 판정(기준 저항 대비 감소율) */
   meas.env = *env_sensor_get();
   gas_monitor_update(now, &meas.env);
   meas.gas = *gas_monitor_get();
 
+  /* 전압/온도/가스를 종합해 OK / WARN / ALARM 결정 */
   safety_input_t in = {
     .cell_mv = meas.cell_mv,
     .batt_temp_valid = meas.batt_temp_valid,
@@ -104,7 +119,7 @@ static void measure_update(uint32_t now)
   };
   meas.safety = safety_evaluate(&in);
 
-  /* 전류 / 충전 / SOC */
+  /* 전류(INA219), 충전 상태(TP4056), 충전 차단(MOSFET), 전류 적분 SOC */
   const power_data_t *pw = power_monitor_get();
   meas.power_valid = pw->valid;
   meas.vbus_mv = pw->vbus_mv;
@@ -132,6 +147,7 @@ static void update_led(uint32_t now)
   }
 }
 
+/* main() 의 모든 주변장치 초기화(MX_*_Init) 이후 한 번 호출 */
 void app_init(void)
 {
   log_init();
@@ -148,11 +164,13 @@ void app_init(void)
   LOG("Battery monitor boot (ntc=%d)", APP_HAVE_NTC);
 }
 
+/* main() 의 while(1) 에서 계속 호출. 논블로킹으로 각 모듈의 task 를 돌린다 */
 void app_loop(void)
 {
-  static uint32_t t_eval, t_tx, t_log;
+  static uint32_t t_eval, t_tx, t_log;   /* 측정 / 텔레메트리 / 로그 주기 타이머 */
   uint32_t now = HAL_GetTick();
 
+  /* 입력 쪽 task: ADC 평균, 환경센서, INA219, TP4056 상태, 버튼, 블루투스 수신 */
   adc_sampler_task(now);
   env_sensor_task(now);
   power_monitor_task(now);
@@ -160,10 +178,12 @@ void app_loop(void)
   poll_button(now);
   bt_link_task();
 
+  /* ADC 평균이 한 번 나온 뒤부터 측정/전송 시작 */
   if (adc_sampler_ready()) {
     if (due(&t_eval, now, PERIOD_EVAL_MS)) {
       measure_update(now);
     }
+    /* DCIR 상태머신에 현재 상태를 전달 (인터록 판정용). 측정 중에는 최대 약 0.2초 블로킹 */
     dcir_input_t di = {
       .ready = meas_valid,
       .cell_mv = meas.cell_mv,
@@ -175,9 +195,9 @@ void app_loop(void)
     dcir_task(now, &di);
 
     if (meas_valid && due(&t_tx, now, PERIOD_TELEMETRY_MS)) {
-      telemetry_send(&meas);
+      telemetry_send(&meas);   /* 블루투스 $BAT 패킷 */
     }
-    if (meas_valid && due(&t_log, now, PERIOD_LOG_MS)) {
+    if (meas_valid && due(&t_log, now, PERIOD_LOG_MS)) {   /* 디버그 UART(USART2) 로그 */
       LOG("cell=%umV soc=%u%% env_t=%d state=%d flags=0x%X i=%dmA chg=%u en=%u socq=%u",
           meas.cell_mv, meas.soc_pct, meas.env.temp_x10,
           meas.safety.state, meas.safety.flags,

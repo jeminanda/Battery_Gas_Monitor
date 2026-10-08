@@ -9,6 +9,13 @@
 #include "telemetry.h"
 #include "log.h"
 
+/*
+ * 내부 저항(DCIR) 측정. 부하(MOSFET2)를 잠깐 걸어 전압이 떨어지는 양으로 계산한다.
+ *   DCIR = (V0 - V1) / |I1 - I0|     (V0,I0: 부하 전 / V1,I1: 부하 중)
+ * 진행 순서: 인터록 확인 -> 충전기 분리(MOSFET1 OFF) -> 휴지 -> [V0,I0 평균 -> 부하 펄스 -> V1,I1 평균]
+ *            x DCIR_REPEAT_N 회(사이에 회복 휴지) -> 평균/표준편차 계산 -> $DCIR 전송 -> 충전 복구.
+ * 휴지는 논블로킹 상태머신이고, 한 번의 측정(약 0.2초)만 블로킹으로 수행한다.
+ */
 #define ADC_TIMEOUT_MS      5
 #define BASELINE_GUARD_MS   500
 #define PULSE_GUARD_EXTRA_MS 150
@@ -113,6 +120,7 @@ static bool measure_once(sample_t *s)
   return ok;
 }
 
+/* 정수 제곱근 (표준편차 계산용, 비트 단위 방식) */
 static uint32_t isqrt64(uint64_t x)
 {
   uint64_t r = 0;

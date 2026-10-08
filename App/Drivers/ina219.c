@@ -2,6 +2,8 @@
 #include "config.h"
 #include "i2c.h"
 
+/* INA219 전류/전압 모니터 (I2C1). 션트 전압(10uV/LSB)으로 전류를, 버스 전압(4mV/LSB)을 읽는다 */
+
 #define REG_CONFIG   0x00
 #define REG_SHUNT    0x01
 #define REG_BUS      0x02

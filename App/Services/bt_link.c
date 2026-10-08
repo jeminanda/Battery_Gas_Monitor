@@ -3,14 +3,21 @@
 #include "main.h"
 #include "usart.h"
 
-#define TX_MASK (BT_TX_BUF_SIZE - 1)
+/*
+ * USART1(블루투스) 송수신.
+ *  송신: 링 버퍼에 쌓고 인터럽트로 보낸다 (메인 루프는 블로킹 없음)
+ *  수신: 1바이트씩 받아 개행(\n, \r)에서 한 줄을 완성하고, 메인 루프(bt_link_task)에서 콜백 호출
+ */
+#define TX_MASK (BT_TX_BUF_SIZE - 1)   /* 크기가 2의 거듭제곱이라 마스크로 순환 */
 
+/* 송신 링 버퍼: head 에 쓰고(메인), tail 에서 보낸다(ISR) */
 static uint8_t           tx_buf[BT_TX_BUF_SIZE];
 static volatile uint16_t tx_head;      /* 메인 컨텍스트만 갱신 */
 static volatile uint16_t tx_tail;      /* ISR 만 갱신 */
 static volatile bool     tx_busy;
 static uint16_t          tx_chunk;
 
+/* 수신: rx_line 에 모으다 한 줄이 끝나면 rx_ready 로 복사하고 플래그를 세운다 */
 static uint8_t           rx_byte;
 static char              rx_line[BT_RX_LINE_MAX];
 static uint8_t           rx_len;
