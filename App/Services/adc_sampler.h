@@ -6,8 +6,7 @@
 
 /* CubeMX 에서 설정한 ADC1 rank 순서와 일치해야 한다. */
 typedef enum {
-  ADC_IDX_MQ = 0,   /* PA0  */
-  ADC_IDX_NTC,      /* PA1  (NTC 미도착: 값은 읽히지만 사용하지 않음) */
+  ADC_IDX_NTC = 0,  /* PA1  */
   ADC_IDX_CELL,     /* PA4  */
   ADC_IDX_VREF,     /* VREFINT */
   ADC_IDX_COUNT

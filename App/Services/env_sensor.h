@@ -2,8 +2,7 @@
 #define ENV_SENSOR_H
 
 /*
- * 환경센서 추상화. 백엔드는 config.h 의 ENV_BACKEND_BME680 으로 선택한다.
- *   0: DHT11 (온도/습도)    1: BME680 (온도/습도/기압/가스저항)
+ * 환경센서(BME680: 온도/습도/기압/가스저항).
  * 상위 모듈은 valid_mask 로 어떤 필드가 유효한지 확인한다.
  */
 
@@ -21,6 +20,7 @@ typedef struct {
   uint16_t press_hpa_x10;   /* 0.1 hPa */
   uint32_t gas_ohm;         /* BME680 가스 저항 */
   uint8_t  valid_mask;      /* ENV_HAS_* 조합. 0이면 전부 무효 */
+  uint32_t sample_id;       /* 새 측정이 저장될 때마다 증가 */
 } env_data_t;
 
 bool env_sensor_init(void);

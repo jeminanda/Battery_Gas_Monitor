@@ -1,12 +1,8 @@
 #include "env_sensor.h"
 #include "config.h"
-
-#if ENV_BACKEND_BME680
+#include "log.h"
 #include "bme680_port.h"
 #include "i2c.h"
-#else
-#include "dht11.h"
-#endif
 
 #define ENV_MAX_FAILS 3   /* 연속 실패가 이 횟수에 도달하면 값을 무효 처리 */
 
@@ -17,12 +13,22 @@ static bool       pending;   /* BME680 측정 진행 중 */
 
 bool env_sensor_init(void)
 {
-#if ENV_BACKEND_BME680
   return bme680_port_init(&hi2c1, BME680_I2C_ADDR_7BIT);
-#else
-  dht11_init();
-  return true;
-#endif
+}
+
+/* 값이 나오기 시작/끊긴 시점만 로그로 알린다 */
+static void report_state(void)
+{
+  static bool last_ok;
+  bool ok = (data.valid_mask != 0);
+  if (ok != last_ok) {
+    last_ok = ok;
+    if (ok) {
+      LOG("env sensor OK (mask=0x%X)", data.valid_mask);
+    } else {
+      LOG("env sensor no data (BME680)");
+    }
+  }
 }
 
 static void on_failure(void)
@@ -31,17 +37,20 @@ static void on_failure(void)
     fail_cnt = ENV_MAX_FAILS;
     data.valid_mask = 0;
   }
+  report_state();
 }
 
 void env_sensor_task(uint32_t now_ms)
 {
-#if ENV_BACKEND_BME680
   if (pending) {
     env_data_t out;
     if (bme680_port_poll(&out)) {
+      uint32_t id = data.sample_id + 1U;
       data = out;
+      data.sample_id = id;
       fail_cnt = 0;
       pending = false;
+      report_state();
     } else if ((now_ms - last_ms) > 1000) {   /* 측정 타임아웃 */
       pending = false;
       on_failure();
@@ -56,24 +65,6 @@ void env_sensor_task(uint32_t now_ms)
       on_failure();
     }
   }
-#else
-  (void)pending;
-  if ((now_ms - last_ms) < PERIOD_ENV_MS) {
-    return;
-  }
-  last_ms = now_ms;
-
-  int16_t t;
-  uint16_t h;
-  if (dht11_read(&t, &h) == DHT11_OK) {
-    data.temp_x10 = t;
-    data.hum_x10 = h;
-    data.valid_mask = ENV_HAS_TEMP | ENV_HAS_HUM;
-    fail_cnt = 0;
-  } else {
-    on_failure();
-  }
-#endif
 }
 
 const env_data_t *env_sensor_get(void)
