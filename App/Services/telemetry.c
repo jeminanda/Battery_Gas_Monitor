@@ -34,12 +34,8 @@ size_t telemetry_format(char *buf, size_t size, const measurement_t *m, uint32_t
   put_opt(air_humi, sizeof air_humi, m->env.valid_mask & ENV_HAS_HUM, m->env.hum_x10);
   put_opt(air_pres, sizeof air_pres, m->env.valid_mask & ENV_HAS_PRESS, m->env.press_hpa_x10);
 
-  /* gas: BME680 가스 저항(ohm) 우선, 없으면 MQ 전압(mV) */
-  if (m->env.valid_mask & ENV_HAS_GAS) {
-    put_opt(gas, sizeof gas, true, (long)m->env.gas_ohm);
-  } else {
-    put_opt(gas, sizeof gas, m->mq_ready, m->mq_mv);
-  }
+  /* gas: BME680 가스 저항(ohm) */
+  put_opt(gas, sizeof gas, m->env.valid_mask & ENV_HAS_GAS, (long)m->env.gas_ohm);
 
   char vbus[12], cur[12], soc[12];
   put_opt(vbus, sizeof vbus, m->power_valid, m->vbus_mv);

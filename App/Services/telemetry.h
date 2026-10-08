@@ -11,7 +11,7 @@
  *   $BAT,id,packet_index,tick,cell_mv,cell_temp,air_temp,air_humi,air_pres,gas,
  *        vbus_mv,current_ma,charge_state,soc_permil,charge_enabled*CC<LF>
  *   온도/습도/기압은 0.1 단위 정수, CC 는 '$' 와 '*' 사이 문자의 XOR(16진 2자리).
- *   gas: BME680 가스 저항(ohm)이 있으면 그 값, 없으면 MQ 센서 전압(mV).
+ *   gas: BME680 가스 저항(ohm), 측정값이 없으면 NA.
  *   vbus_mv/current_ma: INA219 (충전 +, 방전 -), 없으면 NA.
  *   charge_state: 0 미연결, 1 충전 중, 2 완충, 3 비정상.  soc_permil: 0~1000, 없으면 NA.
  *   charge_enabled: 0/1 (충전 차단 MOSFET).
