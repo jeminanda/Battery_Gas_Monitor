@@ -10,13 +10,14 @@
 #include "bt_link.h"
 #include "log.h"
 #include "cell_voltage.h"
-#include "mq_gas.h"
+#include "gas_monitor.h"
 #include "power_monitor.h"
 #include "charge_status.h"
 #include "charge_ctrl.h"
 #include "soc_estimator.h"
 #include "dcir.h"
 #include <string.h>
+#include <stdlib.h>
 #if APP_HAVE_NTC
 #include "ntc.h"
 #endif
@@ -72,24 +73,34 @@ static void measure_update(uint32_t now)
   meas.cell_mv = cell_voltage_mv_from_raw(adc_sampler_get_raw(ADC_IDX_CELL), meas.vdda_mv);
   meas.soc_pct = battery_soc_pct_from_mv(meas.cell_mv);
 
-  meas.mq_ready = mq_gas_is_ready(now);
-  meas.mq_mv = mq_gas_mv_from_raw(adc_sampler_get_raw(ADC_IDX_MQ), meas.vdda_mv);
-
 #if APP_HAVE_NTC
-  meas.batt_temp_valid = ntc_temp_x10_from_raw(adc_sampler_get_raw(ADC_IDX_NTC),
-                                               meas.vdda_mv, &meas.batt_temp_x10);
+  uint16_t ntc_raw = adc_sampler_get_raw(ADC_IDX_NTC);
+  meas.batt_temp_valid = ntc_temp_x10_from_raw(ntc_raw, meas.vdda_mv, &meas.batt_temp_x10);
+  static bool ntc_reported, ntc_last;
+  if (!ntc_reported || meas.batt_temp_valid != ntc_last) {
+    ntc_reported = true;
+    ntc_last = meas.batt_temp_valid;
+    if (meas.batt_temp_valid) {
+      LOG("NTC OK: %d.%d C (raw=%u)", meas.batt_temp_x10 / 10, abs(meas.batt_temp_x10 % 10), ntc_raw);
+    } else {
+      LOG("NTC not detected (raw=%u): open or short", ntc_raw);
+    }
+  }
 #else
   meas.batt_temp_valid = false;
 #endif
 
   meas.env = *env_sensor_get();
+  gas_monitor_update(now, &meas.env);
+  meas.gas = *gas_monitor_get();
 
   safety_input_t in = {
     .cell_mv = meas.cell_mv,
     .batt_temp_valid = meas.batt_temp_valid,
     .batt_temp_x10 = meas.batt_temp_x10,
-    .mq_ready = meas.mq_ready,
-    .mq_mv = meas.mq_mv,
+    .gas_valid = meas.gas.valid,
+    .gas_warmup = meas.gas.warmup,
+    .gas_level = (uint8_t)meas.gas.level,
   };
   meas.safety = safety_evaluate(&in);
 
@@ -126,6 +137,7 @@ void app_init(void)
   log_init();
   adc_sampler_init();
   env_sensor_init();
+  gas_monitor_init();
   power_monitor_init();
   charge_status_init();
   charge_ctrl_init();
@@ -133,7 +145,7 @@ void app_init(void)
   dcir_init();
   bt_link_init();
   bt_link_set_line_cb(on_bt_line);
-  LOG("Battery monitor boot (ntc=%d, bme680=%d)", APP_HAVE_NTC, ENV_BACKEND_BME680);
+  LOG("Battery monitor boot (ntc=%d)", APP_HAVE_NTC);
 }
 
 void app_loop(void)
@@ -166,10 +178,16 @@ void app_loop(void)
       telemetry_send(&meas);
     }
     if (meas_valid && due(&t_log, now, PERIOD_LOG_MS)) {
-      LOG("cell=%umV soc=%u%% mq=%umV env_t=%d state=%d flags=0x%X i=%dmA chg=%u en=%u socq=%u",
-          meas.cell_mv, meas.soc_pct, meas.mq_mv, meas.env.temp_x10,
+      LOG("cell=%umV soc=%u%% env_t=%d state=%d flags=0x%X i=%dmA chg=%u en=%u socq=%u",
+          meas.cell_mv, meas.soc_pct, meas.env.temp_x10,
           meas.safety.state, meas.safety.flags,
           meas.current_ma, meas.charge_state, meas.charge_enabled, meas.soc_permil);
+      LOG("ntc=%d(%d) env=0x%X h=%u p=%u gas=%lu base=%lu drop=%u.%u%% lvl=%d%s",
+          meas.batt_temp_valid, meas.batt_temp_x10, meas.env.valid_mask,
+          meas.env.hum_x10, meas.env.press_hpa_x10, (unsigned long)meas.env.gas_ohm,
+          (unsigned long)meas.gas.baseline_ohm,
+          (unsigned)(meas.gas.drop_pm / 10), (unsigned)(meas.gas.drop_pm % 10),
+          meas.gas.level, meas.gas.warmup ? " (warmup)" : "");
     }
   }
   update_led(now);
