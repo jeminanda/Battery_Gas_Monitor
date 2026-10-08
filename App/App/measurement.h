@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "env_sensor.h"
 #include "safety.h"
+#include "gas_monitor.h"
 
 /* 한 주기의 측정 결과 스냅샷. telemetry/log 가 읽는다. */
 typedef struct {
@@ -14,9 +15,8 @@ typedef struct {
   uint8_t  soc_pct;
   bool     batt_temp_valid;    /* NTC 없으면 항상 false */
   int16_t  batt_temp_x10;
-  bool     mq_ready;
-  uint16_t mq_mv;
   env_data_t env;
+  gas_state_t gas;             /* BME680 가스 저항 기준값 대비 판정 */
   safety_result_t safety;
 
   /* 전류/충전 (INA219, TP4056) */

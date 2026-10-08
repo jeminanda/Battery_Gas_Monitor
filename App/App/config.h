@@ -2,8 +2,7 @@
 #define APP_CONFIG_H
 
 /* ---- 하드웨어 존재 여부 (부품이 없으면 0) ------------------------------ */
-#define APP_HAVE_NTC            0   /* NTC 미도착: 0이면 배터리 온도는 "없음"으로 처리 */
-#define ENV_BACKEND_BME680      0   /* BME680 미도착: 0이면 DHT11 백엔드 사용 */
+#define APP_HAVE_NTC            1   /* 1: 배터리 온도 NTC 사용(PA1), 0이면 배터리 온도는 "없음"으로 처리 */
 
 /* ---- 장치/통신 -------------------------------------------------------- */
 #define APP_DEVICE_ID           1
@@ -12,7 +11,7 @@
 
 /* ---- 주기 (ms) -------------------------------------------------------- */
 #define PERIOD_ADC_SAMPLE_MS    10
-#define PERIOD_ENV_MS           2000    /* DHT11 최소 간격 1s 이상 */
+#define PERIOD_ENV_MS           2000    /* BME680 측정 주기 */
 #define PERIOD_EVAL_MS          100
 #define PERIOD_TELEMETRY_MS     1000
 #define PERIOD_LOG_MS           1000
@@ -30,9 +29,6 @@
 #define CELL_DIV_R_TOP_OHM      10000UL
 #define CELL_DIV_R_BOTTOM_OHM   10000UL
 
-/* ---- MQ 가스센서 ------------------------------------------------------ */
-#define MQ_WARMUP_MS            60000UL /* TODO: 센서 데이터시트 기준으로 조정 */
-
 /* ---- 안전 임계값 (Li-ion 1셀 가정) ------------------------------------- */
 #define SAFE_CELL_LOW_WARN_MV   3300
 #define SAFE_CELL_LOW_ALARM_MV  3000
@@ -40,8 +36,17 @@
 #define SAFE_CELL_HIGH_ALARM_MV 4350
 #define SAFE_TEMP_WARN_X10      450     /* 45.0 C */
 #define SAFE_TEMP_ALARM_X10     600     /* 60.0 C */
-#define SAFE_GAS_WARN_MV        1500    /* TODO: 실측 후 보정 */
-#define SAFE_GAS_ALARM_MV       2200
+
+/* ---- 가스 이상 감지 (BME680 가스 저항의 기준값 대비 감소율) ------------ */
+/* TODO: 실제 케이스 내부에서 실측 후 보정 */
+#define GAS_WARMUP_MS           1800000UL /* 첫 유효 샘플 후 기준값 안정화 시간 30분 (판정 보류). 47k~48k 로 안정되는 데 약 30분 */
+#define GAS_DROP_WARN_PM        300     /* 기준 대비 30.0% 이상 감소 -> 경고 */
+#define GAS_DROP_ALARM_PM       500     /* 기준 대비 50.0% 이상 감소 -> 경보 */
+#define GAS_DROP_HYST_PM        50      /* 단계를 내릴 때 5.0% 히스테리시스 */
+#define GAS_CONFIRM_SAMPLES     2       /* 같은 판정이 연속으로 이만큼 나와야 단계 변경 (노이즈 방지) */
+#define GAS_BASE_UP_SHIFT       3       /* 기준값 상승 추적: 1/8 씩 (공기가 깨끗해지는 방향은 빠르게) */
+#define GAS_BASE_DOWN_SHIFT     9       /* 기준값 하락 추적: 1/512 씩 (매우 느리게) */
+#define GAS_STALE_MS            10000UL /* 새 가스 측정이 이 시간 동안 없으면 판정 무효 */
 
 /* ---- I2C / INA219 (전류 측정, 없으면 자동으로 "NA" 처리) --------------- */
 #define APP_I2C_SPEED_HZ        400000UL
@@ -78,7 +83,21 @@
 #define DCIR_MIN_WINDOW_SAMPLES 8       /* 80~98ms 구간 최소 샘플 수 */
 #define DCIR_AUTO_INTERVAL_MS   0UL     /* 0 이면 자동 측정 없음 (B1 버튼 / BT "DCIR" 명령으로 시작) */
 
-/* ---- BME680 (도착 후 사용) -------------------------------------------- */
+/* ---- NTC 서미스터 (PA1, 분압 회로) ------------------------------------ */
+/* TODO: 실제 부품/회로에 맞게 확인. 아래는 흔한 10k, B3950 + 10k 고정저항 가정 */
+#define NTC_R_FIXED_OHM         10000UL /* 분압 고정저항 */
+#define NTC_R0_OHM              10000UL /* 25 C 에서의 NTC 저항 */
+#define NTC_T0_C                25.0f
+#define NTC_BETA                3950UL  /* 데이터시트 B 값 */
+#define NTC_ON_LOW_SIDE         1       /* 1: 고정저항-VDD, NTC-GND (PA1 은 중간점) / 0: 반대 */
+#define NTC_RAW_MIN             50      /* 이보다 작으면 단락/단선으로 판정 */
+#define NTC_RAW_MAX             4045
+#define NTC_TEMP_MIN_C          (-40.0f)
+#define NTC_TEMP_MAX_C          125.0f
+
+/* ---- BME680 ----------------------------------------------------------- */
 #define BME680_I2C_ADDR_7BIT    0x76    /* SDO=GND:0x76, SDO=VDD:0x77 */
+#define BME680_HEATER_TEMP_C    300     /* 가스 측정용 히터 온도 */
+#define BME680_HEATER_DUR_MS    100     /* 히터 가열 시간 */
 
 #endif /* APP_CONFIG_H */
