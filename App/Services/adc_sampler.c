@@ -1,13 +1,16 @@
+/*
+ * adc_sampler.c -- ADC1 스캔 샘플러 (DMA)
+ * 역할: NTC(PA1), 셀 전압(PA4), VREFINT 를 DMA 로 읽어 ADC_AVG_SAMPLES 번 평균한다.
+ *       VREFINT 로 실제 VDDA 를 계산해 mV 환산 시 공급 전압 변동을 보정한다.
+ * 용도: app.c 가 평균 raw 값과 VDDA 를 가져가 전압/온도로 환산한다. dcir.c 는 즉시 1회 변환을 쓴다.
+ * 흐름: 일정 주기로 변환 시작 -> DMA 완료 콜백이 conv_done 설정 -> task 가 누적 -> 평균 공개.
+ */
+
 #include "adc_sampler.h"
 #include "config.h"
 #include "main.h"
 #include "adc.h"
 
-/*
- * ADC1 스캔(NTC, 셀 전압, VREFINT)을 DMA 로 읽어 ADC_AVG_SAMPLES 번 평균한다.
- * 변환 흐름: 일정 주기로 변환 시작 -> DMA 완료 콜백이 conv_done 설정 -> task 가 누적 -> 평균 공개.
- * VREFINT 로 실제 VDDA 를 계산해 mV 환산 시 공급 전압 변동을 보정한다.
- */
 static uint16_t dma_buf[ADC_IDX_COUNT];   /* DMA 가 채우는 최신 1회 변환 결과 */
 static uint32_t acc[ADC_IDX_COUNT];       /* 평균용 누적 합 */
 static uint16_t avg[ADC_IDX_COUNT];       /* 공개되는 평균 raw 값 */

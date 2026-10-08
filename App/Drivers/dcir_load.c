@@ -1,3 +1,10 @@
+/*
+ * dcir_load.c -- DCIR 부하 펄스 (MOSFET2, TIM3 원펄스)
+ * 역할: 내부 저항 측정용 부하를 TIM3 원펄스(PA6)로 정확한 시간 동안만 켠다.
+ *       펄스가 끝나면 하드웨어가 자동으로 꺼져서 소프트웨어가 멈춰도 부하가 남지 않는다.
+ * 용도: dcir.c 가 시작/진행 확인/강제 종료에 사용한다. 펄스 폭은 CubeMX 의 TIM3 설정을 따른다.
+ */
+
 #include "dcir_load.h"
 #include "main.h"
 #include "tim.h"

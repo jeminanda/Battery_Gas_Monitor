@@ -1,3 +1,10 @@
+/*
+ * power_monitor.c -- 전류/버스 전압 주기 측정 (INA219)
+ * 역할: INA219 를 PERIOD_POWER_MS 마다 읽어 전류(충전 +, 방전 -)와 버스 전압을 보관한다.
+ *       응답이 없으면 주기적으로 다시 찾으므로 나중에 꽂아도 자동으로 인식한다.
+ * 용도: app.c(텔레메트리), soc_estimator.c(전류 적분), dcir.c(시작 인터록)가 사용한다.
+ */
+
 #include "power_monitor.h"
 #include "config.h"
 #include "ina219.h"

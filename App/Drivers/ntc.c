@@ -1,3 +1,9 @@
+/*
+ * ntc.c -- NTC 서미스터 온도 계산
+ * 역할: 분압 회로(PA1)의 ADC raw 값을 Beta 식으로 온도(0.1 C)로 환산하고, 단선/단락을 판정한다.
+ * 용도: app.c 의 measure_update 가 배터리 온도를 구해 안전 판정(과열)과 텔레메트리에 사용한다.
+ */
+
 #include "ntc.h"
 #include "config.h"
 #include <math.h>

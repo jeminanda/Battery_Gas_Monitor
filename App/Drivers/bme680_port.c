@@ -1,3 +1,11 @@
+/*
+ * bme680_port.c -- BME680 포팅 계층
+ * 역할: Bosch BME68x 공식 드라이버(bme68x/)의 read/write/delay 콜백을 STM32 HAL I2C1 에 연결하고,
+ *       forced mode 측정을 시작(trigger)/완료 확인(poll)하는 비동기 인터페이스를 제공한다.
+ * 용도: env_sensor.c 가 주기마다 trigger -> poll 로 온도/습도/기압/가스 저항을 읽는다.
+ *       센서가 없으면 trigger 때마다 재탐색하므로 나중에 꽂아도 자동으로 인식된다.
+ */
+
 #include "bme680_port.h"
 #include "bme68x.h"
 #include "config.h"

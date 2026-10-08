@@ -1,3 +1,9 @@
+/*
+ * safety.c -- 안전 판정
+ * 역할: 셀 전압, 배터리 온도, 가스 단계를 임계값과 비교해 OK / WARN / ALARM 과 원인 플래그를 만든다.
+ * 용도: app.c 가 결과로 상태 LED 를 구동하고, charge_ctrl.c 가 과충전/과열/가스 경보일 때 충전을 차단한다.
+ */
+
 #include "safety.h"
 #include "config.h"
 

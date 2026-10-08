@@ -1,13 +1,16 @@
+/*
+ * bt_link.c -- 블루투스 링크 (USART1)
+ * 역할: 송신은 링 버퍼에 쌓고 인터럽트로 보내며(메인 루프 블로킹 없음),
+ *       수신은 1바이트씩 받아 개행(\n, \r)에서 한 줄을 완성한다.
+ * 용도: telemetry.c 가 패킷을 bt_link_send 로 넣고, 받은 한 줄은 bt_link_task 가
+ *       메인 루프에서 콜백(app.c 의 on_bt_line)으로 전달한다.
+ */
+
 #include "bt_link.h"
 #include "config.h"
 #include "main.h"
 #include "usart.h"
 
-/*
- * USART1(블루투스) 송수신.
- *  송신: 링 버퍼에 쌓고 인터럽트로 보낸다 (메인 루프는 블로킹 없음)
- *  수신: 1바이트씩 받아 개행(\n, \r)에서 한 줄을 완성하고, 메인 루프(bt_link_task)에서 콜백 호출
- */
 #define TX_MASK (BT_TX_BUF_SIZE - 1)   /* 크기가 2의 거듭제곱이라 마스크로 순환 */
 
 /* 송신 링 버퍼: head 에 쓰고(메인), tail 에서 보낸다(ISR) */

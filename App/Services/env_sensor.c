@@ -1,3 +1,10 @@
+/*
+ * env_sensor.c -- 환경센서 관리 (BME680)
+ * 역할: 온도/습도/기압/가스 저항 측정을 주기마다 시작하고 완료를 확인해 최신 값을 보관한다.
+ *       값이 나오기 시작/끊기는 시점을 로그로 알리고, 연속 실패 시 값을 무효 처리한다.
+ * 용도: app.c 가 env_sensor_get() 으로 읽어 측정 구조체에 담고, gas_monitor.c 의 입력이 된다.
+ */
+
 #include "env_sensor.h"
 #include "config.h"
 #include "log.h"

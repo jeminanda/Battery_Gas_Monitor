@@ -1,3 +1,11 @@
+/*
+ * soc_estimator.c -- 전류 적분 SOC 추정
+ * 역할: 전류를 사다리꼴로 적분해 잔량(0.1%)을 추적한다. 시작 시 OCV 테이블로 초기화하고,
+ *       완충(STDBY) 시 100% 로 리셋하며, 휴지가 길게 이어지면 OCV 로 보정한다.
+ * 용도: app.c 가 주기마다 갱신하고 결과를 텔레메트리의 soc_permil 로 보낸다.
+ *       INA219 나 배터리가 없으면 무효(NA)이다.
+ */
+
 #include "soc_estimator.h"
 #include "config.h"
 #include "battery_soc.h"

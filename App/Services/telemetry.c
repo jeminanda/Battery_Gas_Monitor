@@ -1,3 +1,10 @@
+/*
+ * telemetry.c -- 블루투스 패킷 생성/송신
+ * 역할: 측정 구조체를 한 줄 텍스트 패킷($BAT)으로, DCIR 결과를 $DCIR 패킷으로 만든다.
+ *       필드 순서와 체크섬(XOR) 형식은 telemetry.h 주석에 정의되어 있다.
+ * 용도: app.c 가 1초마다 telemetry_send 를, dcir.c 가 측정 완료 시 telemetry_send_dcir 를 호출한다.
+ */
+
 #include "telemetry.h"
 #include "config.h"
 #include "bt_link.h"

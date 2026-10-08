@@ -1,3 +1,11 @@
+/*
+ * app.c -- 애플리케이션 최상위 (메인 루프 조립)
+ * 역할: 각 센서/통신 모듈을 초기화하고 주기적으로 실행하며, 측정 결과를 measurement_t
+ *       한 덩어리로 모아 블루투스 텔레메트리, 디버그 로그, 상태 LED 로 내보낸다.
+ * 용도: main.c 의 USER CODE 에서 app_init() 을 한 번, app_loop() 을 while(1) 에서 반복 호출한다.
+ *       블루투스 명령("DCIR", "DCIR STOP")과 B1 버튼(DCIR 시작) 입력도 여기서 처리한다.
+ */
+
 #include "app.h"
 #include "config.h"
 #include "main.h"
@@ -21,11 +29,6 @@
 #if APP_HAVE_NTC
 #include "ntc.h"
 #endif
-
-/*
- * 애플리케이션 최상위. 센서 모듈들을 주기적으로 돌리고(app_loop), 그 결과를
- * measurement_t 한 덩어리로 모아(measure_update) 텔레메트리/로그/LED 로 내보낸다.
- */
 
 static measurement_t meas;        /* 가장 최근 측정 스냅샷 (telemetry/log/dcir 가 읽음) */
 static bool          meas_valid;  /* measure_update 가 한 번이라도 실행됐는지 */

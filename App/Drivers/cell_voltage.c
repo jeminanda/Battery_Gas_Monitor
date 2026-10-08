@@ -1,3 +1,9 @@
+/*
+ * cell_voltage.c -- 셀 전압 환산
+ * 역할: 분압 회로를 거친 ADC raw 값(PA4)을 실제 배터리 셀 전압으로 환산한다.
+ * 용도: app.c 는 mV 로 안전 판정/로그에, dcir.c 는 raw 합을 uV 로 환산해 정밀 평균에 사용한다.
+ */
+
 #include "cell_voltage.h"
 #include "config.h"
 

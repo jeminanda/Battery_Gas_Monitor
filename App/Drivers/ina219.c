@@ -1,8 +1,12 @@
+/*
+ * ina219.c -- INA219 전류/전압 모니터 드라이버 (I2C1)
+ * 역할: 션트 전압(10uV/LSB)으로 전류를, 버스 전압(4mV/LSB)을 읽는다. 연속 변환 12비트로 설정한다.
+ * 용도: power_monitor.c 가 주기적으로 읽고(SOC 적분/텔레메트리), dcir.c 가 부하 전후 고속 샘플링에 쓴다.
+ */
+
 #include "ina219.h"
 #include "config.h"
 #include "i2c.h"
-
-/* INA219 전류/전압 모니터 (I2C1). 션트 전압(10uV/LSB)으로 전류를, 버스 전압(4mV/LSB)을 읽는다 */
 
 #define REG_CONFIG   0x00
 #define REG_SHUNT    0x01

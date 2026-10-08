@@ -1,3 +1,9 @@
+/*
+ * log.c -- 디버그 로그 출력 (USART2, ST-Link 가상 COM 포트)
+ * 역할: printf 의 출력 한 글자(__io_putchar)를 USART2 로 보내 LOG() 매크로가 동작하게 한다.
+ * 용도: 시리얼 모니터(115200 baud)로 보드 상태와 센서 연결 여부를 확인한다.
+ */
+
 #include "log.h"
 #include "usart.h"
 

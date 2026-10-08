@@ -1,3 +1,11 @@
+/*
+ * charge_ctrl.c -- 충전 차단 제어 (MOSFET1, PB10)
+ * 역할: 충전 허용(High)/차단(Low)을 결정한다. 과충전/과열/가스 경보일 때 차단하고,
+ *       DCIR 측정 중에는 외부 요청으로 잠근다. 경보가 풀려도 일정 시간 차단을 유지한다.
+ * 용도: app.c 가 안전 상태를 넘겨 갱신하고, dcir.c 가 측정 동안 잠금을 건다.
+ *       저전압 경보는 충전이 필요하므로 차단하지 않는다.
+ */
+
 #include "charge_ctrl.h"
 #include "config.h"
 #include "pins.h"
