@@ -60,8 +60,6 @@ void Error_Handler(void);
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
 #define B1_EXTI_IRQn EXTI15_10_IRQn
-#define MQGasSensor_Pin GPIO_PIN_0
-#define MQGasSensor_GPIO_Port GPIOA
 #define NTCTemperature_Pin GPIO_PIN_1
 #define NTCTemperature_GPIO_Port GPIOA
 #define USART_TX_Pin GPIO_PIN_2
@@ -72,8 +70,6 @@ void Error_Handler(void);
 #define CellVoltage_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
-#define DHT11_Pin GPIO_PIN_8
-#define DHT11_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
