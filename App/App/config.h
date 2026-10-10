@@ -29,7 +29,7 @@
 #define CELL_DIV_R_TOP_OHM      10000UL
 #define CELL_DIV_R_BOTTOM_OHM   10000UL
 
-/* ---- 안전 임계값 (Li-ion 1셀 가정) ------------------------------------- */
+/* ---- 안전 임계값 기본값 (Li-ion 1셀 가정). 서버 명령으로 바꾸면 재부팅 전까지 RAM 값 사용 ---- */
 #define SAFE_CELL_LOW_WARN_MV   3300
 #define SAFE_CELL_LOW_ALARM_MV  3000
 #define SAFE_CELL_HIGH_WARN_MV  4250
@@ -37,7 +37,7 @@
 #define SAFE_TEMP_WARN_X10      450     /* 45.0 C */
 #define SAFE_TEMP_ALARM_X10     600     /* 60.0 C */
 
-/* ---- 가스 이상 감지 (BME680 가스 저항의 기준값 대비 감소율) ------------ */
+/* ---- 가스 이상 감지 (BME680 가스 저항의 기준값 대비 감소율, DROP_WARN/ALARM 은 기본값) ---- */
 /* TODO: 실제 케이스 내부에서 실측 후 보정 */
 #define GAS_WARMUP_MS           1800000UL /* 첫 유효 샘플 후 기준값 안정화 시간 30분 (판정 보류). 47k~48k 로 안정되는 데 약 30분 */
 #define GAS_DROP_WARN_PM        300     /* 기준 대비 30.0% 이상 감소 -> 경고 */
@@ -53,13 +53,16 @@
 #define INA219_I2C_ADDR_7BIT    0x40
 #define INA219_SHUNT_MOHM       100     /* TODO: 모듈 션트 저항 확인 (R100 = 100 mohm) */
 #define INA219_PGA              3       /* 0:+-40mV 1:+-80mV 2:+-160mV 3:+-320mV (0.1ohm 에서 3.2A) */
-#define INA219_CURRENT_SIGN     (+1)    /* 충전 + / 방전 - 가 되도록 배선에 맞게 +1/-1 */
+#define INA219_CURRENT_SIGN     (-1)    /* 충전 + / 방전 - 가 되도록 배선에 맞게 +1/-1 (IN-쪽이 부하/충전기 노드이면 -1) */
 
-/* ---- TP4056 충전 상태 (CHRG/STDBY 는 open-drain, Low 가 활성) ----------- */
-#define CHG_DEBOUNCE_MS         500     /* 이 시간 동안 같은 값이어야 상태 전환 (CHRG 점멸 무시) */
-
-/* ---- 충전 차단 (MOSFET1, PB10 High = 충전 허용) -------------------------- */
-#define CHARGE_CUT_HOLD_MS      10000UL /* 경보가 풀려도 이 시간 동안은 차단 유지 (채터링 방지) */
+/* ---- 충전 상태 추정 (INA219 전류 기반, TP4056 상태 핀은 사용하지 않음) ---- */
+/* TP4056 PROG 저항으로 정한 충전 전류(예: 1A)에 맞게 조정. 종료 전류는 설정 전류의 약 1/10 */
+#define CHG_ON_MA               100     /* 충전 전류(+)가 이 값 이상이면 충전 중 */
+#define CHG_OFF_MA              30      /* 충전 중에서 이 값 아래로 내려가면 충전 종료 후보 */
+#define CHG_DONE_MV             4150    /* 충전 종료 시 셀 전압이 이 값 이상이면 완충으로 판단 */
+#define CHG_RECHARGE_MV         4000    /* 완충 상태는 셀 전압이 이 값 아래로 떨어지면 해제 */
+#define CHG_DISCHARGE_MA        20      /* 이 값 이상 방전 중이면 완충 상태 해제 */
+#define CHG_DEBOUNCE_MS         500     /* 이 시간 동안 같은 판정이 이어져야 상태 전환 */
 
 /* ---- SOC (전류 적분 + 완충 리셋 + 휴지 시 OCV 보정) --------------------- */
 #define BATT_CAPACITY_MAH       2200    /* ZM18650P-2200 공칭 용량 */
@@ -68,12 +71,12 @@
 #define SOC_REST_CORRECT_MS     1800000UL /* 휴지가 이 시간 지속되면 OCV 로 보정 */
 #define SOC_MAX_DT_MS           2000UL  /* 적분 간격이 이보다 길면 해당 구간은 적분하지 않음 */
 
-/* ---- DCIR 측정 (TIM3 원펄스 부하 + 충전 차단 인터록) -------------------- */
+/* ---- DCIR 측정 (TIM3 원펄스 부하, 충전 중에는 시작하지 않음) ------------- */
 /* 부하 펄스 폭은 CubeMX 의 TIM3 설정(Prescaler/Period)으로 결정된다. (현재 약 100ms) */
 #define DCIR_WINDOW_START_MS    80      /* 0~80ms 는 버리고 */
 #define DCIR_WINDOW_END_MS      98      /* 80~98ms 구간을 V1, I1 로 평균 */
 #define DCIR_BASELINE_SAMPLES   64      /* V0, I0 평균 횟수 */
-#define DCIR_REST_MS            30000UL /* 충전기 분리 후 휴지 */
+#define DCIR_REST_MS            30000UL /* 시작 전 휴지 (셀 안정화) */
 #define DCIR_REPEAT_REST_MS     10000UL /* 반복 측정 사이 회복 시간 */
 #define DCIR_REPEAT_N           5       /* 측정 반복 횟수 (5~10) */
 #define DCIR_MIN_VALID          3       /* 유효한 반복이 이보다 적으면 결과 폐기 */
@@ -81,7 +84,10 @@
 #define DCIR_MIN_CELL_MV        3300    /* 이 전압 미만이면 측정 취소 */
 #define DCIR_MIN_DELTA_UA       20000   /* 부하 ON/OFF 전류 변화가 이보다 작으면 무효 (예상 약 75mA) */
 #define DCIR_MIN_WINDOW_SAMPLES 8       /* 80~98ms 구간 최소 샘플 수 */
-#define DCIR_AUTO_INTERVAL_MS   0UL     /* 0 이면 자동 측정 없음 (B1 버튼 / BT "DCIR" 명령으로 시작) */
+#define DCIR_AUTO_INTERVAL_MS   300000UL /* 자동 측정 주기 5분 (이전 시작 시각 기준). 0 이면 자동 측정 없음 */
+#define DCIR_STRAY_MS           5000UL  /* 측정 중이 아닌데 |전류|가 QUIET 를 넘은 채 이 시간 지속되면 부하를 강제로 끔 */
+#define DCIR_SETTLE_MS          500     /* 측정(펄스) 직후 이 시간 동안은 부하 전류 검사를 건너뜀 (INA219 변환 지연으로 펄스 전류가 잠시 남아 보임) */
+#define DCIR_QUIET_MA           20      /* 측정 시작 전/휴지 중 |전류|가 이 값 이하여야 함 (부하 변동 중 측정 방지) */
 
 /* ---- NTC 서미스터 (PA1, 분압 회로) ------------------------------------ */
 /* TODO: 실제 부품/회로에 맞게 확인. 아래는 흔한 10k, B3950 + 10k 고정저항 가정 */

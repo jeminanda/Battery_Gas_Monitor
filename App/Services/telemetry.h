@@ -9,12 +9,11 @@
 /*
  * 패킷 형식 (한 줄 텍스트, 무효 값은 NA):
  *   $BAT,id,packet_index,tick,cell_mv,cell_temp,air_temp,air_humi,air_pres,gas,
- *        vbus_mv,current_ma,charge_state,soc_permil,charge_enabled*CC<LF>
+ *        vbus_mv,current_ma,charge_state,soc_permil*CC<LF>
  *   온도/습도/기압은 0.1 단위 정수, CC 는 '$' 와 '*' 사이 문자의 XOR(16진 2자리).
  *   gas: BME680 가스 저항(ohm), 측정값이 없으면 NA.
  *   vbus_mv/current_ma: INA219 (충전 +, 방전 -), 없으면 NA.
- *   charge_state: 0 미연결, 1 충전 중, 2 완충, 3 비정상.  soc_permil: 0~1000, 없으면 NA.
- *   charge_enabled: 0/1 (충전 차단 MOSFET).
+ *   charge_state: 0 미연결, 1 충전 중, 2 완충(추정).  soc_permil: 0~1000, 없으면 NA.
  *
  * DCIR 결과 패킷 (측정 1세트 완료 시 1회, 값은 모두 정수/uV/uA/uohm):
  *   $DCIR,id,tick,v0_uv,v1_uv,i0_ua,i1_ua,dcir_uohm,dcir_std_uohm,repeat_n,vcell_mv,temp_mc*CC<LF>

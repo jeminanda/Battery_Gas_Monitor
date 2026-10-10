@@ -3,11 +3,12 @@
  * 역할: 가스 저항 절대값 대신 "기준 저항 대비 얼마나 떨어졌는지"로 경고/경보를 판정한다.
  *       기준값은 깨끗한 공기 쪽(상승)은 빠르게, 하락은 매우 느리게 따라가고, 안정화 구간(GAS_WARMUP_MS)
  *       에는 판정을 보류하며, 연속 확인과 히스테리시스로 단계 흔들림을 막는다.
- * 용도: app.c 가 새 측정마다 갱신하고, 결과 단계를 safety.c 에 넘겨 가스 경보/충전 차단에 반영한다.
+ * 용도: app.c 가 새 측정마다 갱신하고, 결과 단계를 safety.c 에 넘겨 가스 경고/경보에 반영한다.
  */
 
 #include "gas_monitor.h"
 #include "config.h"
+#include "thresholds.h"
 #include "log.h"
 
 static gas_state_t st;
@@ -21,8 +22,9 @@ static uint8_t     pending_cnt;
 /* 현재 단계(level)와 감소량으로 "원하는 단계"를 정한다. 내려올 때는 히스테리시스를 둔다. */
 static gas_level_t decide(gas_level_t level, uint32_t drop_pm)
 {
-  uint32_t alarm_th = GAS_DROP_ALARM_PM - ((level == GAS_LEVEL_ALARM) ? GAS_DROP_HYST_PM : 0U);
-  uint32_t warn_th = GAS_DROP_WARN_PM - ((level >= GAS_LEVEL_WARN) ? GAS_DROP_HYST_PM : 0U);
+  const thresholds_t *t = thresholds_get();   /* 서버 명령으로 바뀔 수 있는 임계값 */
+  uint32_t alarm_th = (uint32_t)t->gas_drop_alarm_pm - ((level == GAS_LEVEL_ALARM) ? GAS_DROP_HYST_PM : 0U);
+  uint32_t warn_th = (uint32_t)t->gas_drop_warn_pm - ((level >= GAS_LEVEL_WARN) ? GAS_DROP_HYST_PM : 0U);
 
   if (drop_pm >= alarm_th) {
     return GAS_LEVEL_ALARM;

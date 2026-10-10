@@ -23,6 +23,8 @@ typedef struct {
   uint16_t cell_mv;
   uint8_t  charge_state;
   bool     power_valid;           /* INA219 응답 */
+  int32_t  current_ma;            /* 현재 전류 (충전 +, 방전 -). 안정(휴지) 상태 확인용 */
+  bool     alarm;                 /* 안전 경보 상태 (경보 중에는 부하를 걸지 않음) */
   bool     temp_valid;
   int16_t  temp_x10;
 } dcir_input_t;
@@ -32,7 +34,7 @@ void dcir_init(void);
 /* 측정 시작 요청. 이미 진행 중이면 false. 인터록 실패 시 시작되지 않고 이유가 LOG 로 출력된다. */
 bool dcir_request(void);
 
-/* 진행 중인 측정을 중단하고 부하 OFF, 충전 복구 */
+/* 진행 중인 측정을 중단하고 부하 OFF */
 void dcir_abort(const char *reason);
 
 bool dcir_is_active(void);

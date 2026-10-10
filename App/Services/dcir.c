@@ -2,9 +2,10 @@
  * dcir.c -- 내부 저항(DCIR) 측정
  * 역할: 부하(MOSFET2)를 잠깐 걸어 전압이 떨어지는 양으로 내부 저항을 계산한다.
  *         DCIR = (V0 - V1) / |I1 - I0|     (V0,I0: 부하 전 / V1,I1: 부하 중)
- * 용도: B1 버튼 또는 블루투스 "DCIR" 명령으로 시작하고, 결과는 $DCIR 패킷으로 전송한다.
- * 순서: 인터록 확인 -> 충전기 분리(MOSFET1 OFF) -> 휴지 -> [V0,I0 평균 -> 부하 펄스 -> V1,I1 평균]
- *       x DCIR_REPEAT_N 회(사이에 회복 휴지) -> 평균/표준편차 계산 -> $DCIR 전송 -> 충전 복구.
+ * 용도: DCIR_AUTO_INTERVAL_MS 마다 자동으로 시작하고(0 이면 끔), B1 버튼이나 블루투스 "DCIR"
+ *       명령으로도 시작한다. 결과는 $DCIR 패킷으로 전송한다.
+ * 순서: 인터록 확인(충전 중이면 시작 안 함) -> 휴지 -> [V0,I0 평균 -> 부하 펄스 -> V1,I1 평균]
+ *       x DCIR_REPEAT_N 회(사이에 회복 휴지) -> 평균/표준편차 계산 -> $DCIR 전송.
  *       휴지는 논블로킹 상태머신이고, 한 번의 측정(약 0.2초)만 블로킹으로 수행한다.
  */
 
@@ -12,7 +13,6 @@
 #include "config.h"
 #include "adc_sampler.h"
 #include "cell_voltage.h"
-#include "charge_ctrl.h"
 #include "charge_status.h"
 #include "dcir_load.h"
 #include "ina219.h"
@@ -25,7 +25,7 @@
 
 typedef enum {
   ST_IDLE = 0,
-  ST_REST,        /* 충전기 분리 후 휴지 / 반복 사이 회복 */
+  ST_REST,        /* 시작 전 휴지 / 반복 사이 회복 */
 } dcir_state_t;
 
 typedef struct {
@@ -153,7 +153,6 @@ static void reset_accumulators(void)
 static void finish(uint32_t now_ms, const dcir_input_t *in)
 {
   state = ST_IDLE;
-  charge_ctrl_set_lock(false);
   has_last = true;
   last_end_ms = now_ms;
 
@@ -223,12 +222,16 @@ bool dcir_is_active(void)
 void dcir_abort(const char *reason)
 {
   dcir_load_off();
-  charge_ctrl_set_lock(false);
   if (state != ST_IDLE) {
     LOG("DCIR aborted: %s", reason);
   }
   state = ST_IDLE;
   pending = false;
+}
+
+static int32_t abs_ma(int32_t v)
+{
+  return (v < 0) ? -v : v;
 }
 
 /* 시작 조건. 실패 이유 문자열을 반환 (통과하면 NULL) */
@@ -243,6 +246,12 @@ static const char *interlock(uint32_t now_ms, const dcir_input_t *in)
   if (in->charge_state == CHARGE_STATE_CHARGING) {
     return "charging";
   }
+  if (in->alarm) {
+    return "safety alarm active";
+  }
+  if (abs_ma(in->current_ma) > DCIR_QUIET_MA) {
+    return "not at rest (load current)";
+  }
   if (in->cell_mv < DCIR_MIN_CELL_MV) {
     return "cell voltage too low";
   }
@@ -250,6 +259,35 @@ static const char *interlock(uint32_t now_ms, const dcir_input_t *in)
     return "too soon after previous";
   }
   return NULL;
+}
+
+/*
+ * 안전장치: 측정 중이 아닌데 전류가 계속 흐르면 부하 MOSFET 이 켜진 채일 수 있다.
+ * DCIR_STRAY_MS 이상 이어지면 부하 핀을 Low 로 강제하고 알린다 (반복 시 로그는 30초에 한 번).
+ */
+static void watch_stray_load(uint32_t now_ms, const dcir_input_t *in)
+{
+  static uint32_t since;
+  static uint32_t last_log;
+  static bool     active;
+
+  if (!in->power_valid || abs_ma(in->current_ma) <= DCIR_QUIET_MA) {
+    active = false;
+    return;
+  }
+  if (!active) {
+    active = true;
+    since = now_ms;
+    return;
+  }
+  if ((now_ms - since) >= DCIR_STRAY_MS) {
+    dcir_load_off();
+    since = now_ms;
+    if (last_log == 0 || (now_ms - last_log) >= 30000UL) {
+      last_log = now_ms;
+      LOG("DCIR: stray current %ldmA while idle, load pin forced low", (long)in->current_ma);
+    }
+  }
 }
 
 void dcir_task(uint32_t now_ms, const dcir_input_t *in)
@@ -261,6 +299,7 @@ void dcir_task(uint32_t now_ms, const dcir_input_t *in)
 #endif
 
   if (state == ST_IDLE) {
+    watch_stray_load(now_ms, in);
     if (!pending) {
       return;
     }
@@ -271,9 +310,8 @@ void dcir_task(uint32_t now_ms, const dcir_input_t *in)
       LOG("DCIR canceled: %s", why);
       return;
     }
-    LOG("DCIR start: charger cut, resting %lus", (unsigned long)(DCIR_REST_MS / 1000));
+    LOG("DCIR start: resting %lus", (unsigned long)(DCIR_REST_MS / 1000));
     reset_accumulators();
-    charge_ctrl_set_lock(true);          /* MOSFET1 OFF */
     rest_start = now_ms;
     rest_len = DCIR_REST_MS;
     state = ST_REST;
@@ -289,13 +327,23 @@ void dcir_task(uint32_t now_ms, const dcir_input_t *in)
     dcir_abort("cell voltage too low");
     return;
   }
+  if (in->alarm) {
+    dcir_abort("safety alarm active");
+    return;
+  }
+  /* 휴지 중 외부 부하가 걸리면 측정값이 흔들리므로 중단. 단, 펄스 직후에는 INA219 의 직전 변환값
+   * (펄스 전류)이 잠시 남아 있으므로 DCIR_SETTLE_MS 가 지난 뒤부터 검사한다. */
+  if ((now_ms - rest_start) >= DCIR_SETTLE_MS && abs_ma(in->current_ma) > DCIR_QUIET_MA) {
+    dcir_abort("load current detected");
+    return;
+  }
   if ((now_ms - rest_start) < rest_len) {
     return;
   }
 
-  /* 휴지 종료: 충전기가 실제로 분리됐는지 확인 후 측정 */
+  /* 휴지 종료: 휴지 중에 충전이 시작되지 않았는지 확인 후 측정 */
   if (in->charge_state == CHARGE_STATE_CHARGING) {
-    dcir_abort("charger still active after cut");
+    dcir_abort("charging detected");
     return;
   }
 

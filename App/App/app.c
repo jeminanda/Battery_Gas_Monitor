@@ -21,9 +21,10 @@
 #include "gas_monitor.h"
 #include "power_monitor.h"
 #include "charge_status.h"
-#include "charge_ctrl.h"
 #include "soc_estimator.h"
 #include "dcir.h"
+#include "thresholds.h"
+#include "command.h"
 #include <string.h>
 #include <stdlib.h>
 #if APP_HAVE_NTC
@@ -43,19 +44,11 @@ static bool due(uint32_t *last, uint32_t now, uint32_t period)
   return false;
 }
 
-/* 블루투스로 한 줄(개행 제외)을 받으면 호출된다. 현재 지원 명령: "DCIR", "DCIR STOP" */
+/* 블루투스로 한 줄(개행 제외)을 받으면 호출된다. 명령 해석은 command.c (임계값 변경만 지원) */
 static void on_bt_line(const char *line)
 {
-  /* TODO: 서버/라즈베리파이 명령 처리 (임계값 변경, 주기 변경 등) */
   LOG("BT rx: %s", line);
-
-  if (strcmp(line, "DCIR") == 0) {
-    if (!dcir_request()) {
-      LOG("DCIR already running");
-    }
-  } else if (strcmp(line, "DCIR STOP") == 0) {
-    dcir_abort("stop command");
-  }
+  command_handle_line(line);
 }
 
 /* B1(사용자 버튼, 누르면 Low): DCIR 측정 시작. 서버 없이 보드만으로 시험할 때 사용 */
@@ -122,14 +115,13 @@ static void measure_update(uint32_t now)
   };
   meas.safety = safety_evaluate(&in);
 
-  /* 전류(INA219), 충전 상태(TP4056), 충전 차단(MOSFET), 전류 적분 SOC */
+  /* 전류(INA219), 전류 기반 충전 상태, 전류 적분 SOC */
   const power_data_t *pw = power_monitor_get();
   meas.power_valid = pw->valid;
   meas.vbus_mv = pw->vbus_mv;
   meas.current_ma = (int16_t)pw->current_ma;
+  charge_status_update(now, pw->valid, pw->current_ma, meas.cell_mv);
   meas.charge_state = charge_status_get();
-  charge_ctrl_update(now, &meas.safety);
-  meas.charge_enabled = charge_ctrl_is_enabled();
   soc_estimator_update(now, pw->valid, pw->current_ma, meas.cell_mv, meas.charge_state);
   meas.soc_valid = soc_estimator_valid();
   meas.soc_permil = soc_estimator_permil();
@@ -154,12 +146,12 @@ static void update_led(uint32_t now)
 void app_init(void)
 {
   log_init();
+  thresholds_init();
   adc_sampler_init();
   env_sensor_init();
   gas_monitor_init();
   power_monitor_init();
   charge_status_init();
-  charge_ctrl_init();
   soc_estimator_init();
   dcir_init();
   bt_link_init();
@@ -173,11 +165,10 @@ void app_loop(void)
   static uint32_t t_eval, t_tx, t_log;   /* 측정 / 텔레메트리 / 로그 주기 타이머 */
   uint32_t now = HAL_GetTick();
 
-  /* 입력 쪽 task: ADC 평균, 환경센서, INA219, TP4056 상태, 버튼, 블루투스 수신 */
+  /* 입력 쪽 task: ADC 평균, 환경센서, INA219, 버튼, 블루투스 수신 */
   adc_sampler_task(now);
   env_sensor_task(now);
   power_monitor_task(now);
-  charge_status_task(now);
   poll_button(now);
   bt_link_task();
 
@@ -192,6 +183,8 @@ void app_loop(void)
       .cell_mv = meas.cell_mv,
       .charge_state = meas.charge_state,
       .power_valid = meas.power_valid,
+      .current_ma = meas.current_ma,
+      .alarm = (meas.safety.state == SAFETY_ALARM),
       .temp_valid = meas.batt_temp_valid || (meas.env.valid_mask & ENV_HAS_TEMP),
       .temp_x10 = meas.batt_temp_valid ? meas.batt_temp_x10 : meas.env.temp_x10,
     };
@@ -201,10 +194,11 @@ void app_loop(void)
       telemetry_send(&meas);   /* 블루투스 $BAT 패킷 */
     }
     if (meas_valid && due(&t_log, now, PERIOD_LOG_MS)) {   /* 디버그 UART(USART2) 로그 */
-      LOG("cell=%umV soc=%u%% env_t=%d state=%d flags=0x%X i=%dmA chg=%u en=%u socq=%u",
+      LOG("cell=%umV soc=%u%% env_t=%d state=%d flags=0x%X ina=%d i=%dmA vbus=%umV chg=%u socq=%u",
           meas.cell_mv, meas.soc_pct, meas.env.temp_x10,
           meas.safety.state, meas.safety.flags,
-          meas.current_ma, meas.charge_state, meas.charge_enabled, meas.soc_permil);
+          meas.power_valid, meas.current_ma, meas.vbus_mv,
+          meas.charge_state, meas.soc_permil);
       LOG("ntc=%d(%d) env=0x%X h=%u p=%u gas=%lu base=%lu drop=%u.%u%% lvl=%d%s",
           meas.batt_temp_valid, meas.batt_temp_x10, meas.env.valid_mask,
           meas.env.hum_x10, meas.env.press_hpa_x10, (unsigned long)meas.env.gas_ohm,

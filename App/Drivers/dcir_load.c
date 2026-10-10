@@ -1,7 +1,8 @@
 /*
  * dcir_load.c -- DCIR 부하 펄스 (MOSFET2, TIM3 원펄스)
  * 역할: 내부 저항 측정용 부하를 TIM3 원펄스(PA6)로 정확한 시간 동안만 켠다.
- *       펄스가 끝나면 하드웨어가 자동으로 꺼져서 소프트웨어가 멈춰도 부하가 남지 않는다.
+ *       펄스 구간에서만 PA6 를 타이머 출력(AF)으로 쓰고, 그 밖에는 일반 출력 Low 로 확실히 눌러 둔다.
+ *       (타이머를 멈춘 뒤 핀이 떠서 게이트 전하가 남는 상황을 막기 위함)
  * 용도: dcir.c 가 시작/진행 확인/강제 종료에 사용한다. 펄스 폭은 CubeMX 의 TIM3 설정을 따른다.
  */
 
@@ -9,7 +10,24 @@
 #include "main.h"
 #include "tim.h"
 
+/* 부하 MOSFET 게이트 (CubeMX 의 TIM3_CH1 핀) */
+#define LOAD_PORT GPIOA
+#define LOAD_PIN  GPIO_PIN_6
+
 static uint32_t timer_clk_hz;
+
+/* PA6 를 일반 출력 Low 로: 게이트를 능동적으로 방전하고 MOSFET 을 확실히 끈다 */
+static void pin_idle_low(void)
+{
+  GPIO_InitTypeDef gi = {0};
+  HAL_GPIO_WritePin(LOAD_PORT, LOAD_PIN, GPIO_PIN_RESET);
+  gi.Pin = LOAD_PIN;
+  gi.Mode = GPIO_MODE_OUTPUT_PP;
+  gi.Pull = GPIO_PULLDOWN;
+  gi.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LOAD_PORT, &gi);
+  HAL_GPIO_WritePin(LOAD_PORT, LOAD_PIN, GPIO_PIN_RESET);
+}
 
 void dcir_load_init(void)
 {
@@ -23,6 +41,7 @@ void dcir_load_init(void)
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1);
   htim3.Instance->EGR = TIM_EGR_UG;
   htim3.Instance->SR = 0;
+  pin_idle_low();
 }
 
 uint32_t dcir_load_us_to_ticks(uint32_t us)
@@ -40,6 +59,7 @@ void dcir_load_pulse_start(void)
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1);
   __HAL_TIM_SET_COUNTER(&htim3, 0);
   __HAL_TIM_CLEAR_FLAG(&htim3, TIM_FLAG_UPDATE);
+  HAL_TIM_MspPostInit(&htim3);                /* PA6 를 TIM3_CH1(AF)으로 되돌림 (CubeMX 생성 함수) */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);   /* 출력 활성화 + 카운터 시작, 원펄스라 끝나면 자동 정지 */
 }
 
@@ -57,4 +77,5 @@ void dcir_load_off(void)
 {
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1);
   __HAL_TIM_SET_COUNTER(&htim3, 0);
+  pin_idle_low();                             /* 타이머를 멈춘 뒤에도 게이트는 Low 로 고정 */
 }
