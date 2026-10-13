@@ -39,7 +39,7 @@
 
 /* ---- 가스 이상 감지 (BME680 가스 저항의 기준값 대비 감소율, DROP_WARN/ALARM 은 기본값) ---- */
 /* TODO: 실제 케이스 내부에서 실측 후 보정 */
-#define GAS_WARMUP_MS           1800000UL /* 첫 유효 샘플 후 기준값 안정화 시간 30분 (판정 보류). 47k~48k 로 안정되는 데 약 30분 */
+#define GAS_WARMUP_MS           300000UL /* 첫 유효 샘플 후 기준값 안정화 시간 05분 (판정 보류). 47k~48k 로 안정되는 데 약 30분 */
 #define GAS_DROP_WARN_PM        300     /* 기준 대비 30.0% 이상 감소 -> 경고 */
 #define GAS_DROP_ALARM_PM       500     /* 기준 대비 50.0% 이상 감소 -> 경보 */
 #define GAS_DROP_HYST_PM        50      /* 단계를 내릴 때 5.0% 히스테리시스 */
@@ -51,7 +51,7 @@
 /* ---- I2C / INA219 (전류 측정, 없으면 자동으로 "NA" 처리) --------------- */
 #define APP_I2C_SPEED_HZ        400000UL
 #define INA219_I2C_ADDR_7BIT    0x40
-#define INA219_SHUNT_MOHM       100     /* TODO: 모듈 션트 저항 확인 (R100 = 100 mohm) */
+#define INA219_SHUNT_MOHM       117     /* 실측 보정값: 표기 R100 이지만 55ohm 부하로 비교하니 전류가 약 1.17배 높게 읽혀 117 로 보정 */
 #define INA219_PGA              3       /* 0:+-40mV 1:+-80mV 2:+-160mV 3:+-320mV (0.1ohm 에서 3.2A) */
 #define INA219_CURRENT_SIGN     (-1)    /* 충전 + / 방전 - 가 되도록 배선에 맞게 +1/-1 (IN-쪽이 부하/충전기 노드이면 -1) */
 
@@ -77,8 +77,8 @@
 #define DCIR_WINDOW_END_MS      98      /* 80~98ms 구간을 V1, I1 로 평균 */
 #define DCIR_BASELINE_SAMPLES   64      /* V0, I0 평균 횟수 */
 #define DCIR_REST_MS            30000UL /* 시작 전 휴지 (셀 안정화) */
-#define DCIR_REPEAT_REST_MS     10000UL /* 반복 측정 사이 회복 시간 */
-#define DCIR_REPEAT_N           5       /* 측정 반복 횟수 (5~10) */
+#define DCIR_REPEAT_REST_MS     3000UL  /* 반복 측정 사이 회복 시간 (100ms 펄스 뒤 회복) */
+#define DCIR_REPEAT_N           20      /* 측정 반복 횟수. 평균 오차는 1/sqrt(N) 로 줄어듦 (1세트 약 90초) */
 #define DCIR_MIN_VALID          3       /* 유효한 반복이 이보다 적으면 결과 폐기 */
 #define DCIR_MIN_INTERVAL_MS    60000UL /* 직전 측정 후 최소 간격 */
 #define DCIR_MIN_CELL_MV        3300    /* 이 전압 미만이면 측정 취소 */
